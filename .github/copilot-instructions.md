@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-**LocalGrid** (LocalSkill internally) is a production-ready Next.js full-stack application for hyperlocal skill exchange in India. The platform supports **two distinct user roles** with separate workflows and dashboards.
+**LocalGrid** is a production-ready Next.js full-stack application for hyperlocal skill exchange in India. The platform supports **two distinct user roles** with separate workflows and dashboards.
 
 ## Core Architecture
 
 ### User Role System (PRIMARY FEATURE)
 
-The platform implements a **dual-role system** where users choose their role during signup:
+The platform implements a **dual-role system** where users choose their role after signup:
 
 #### 1. **Skill Providers** 🎨
 - **Purpose**: Individuals who offer services and skills
@@ -37,16 +37,14 @@ The platform implements a **dual-role system** where users choose their role dur
 ### Authentication Flow
 
 1. User visits `/auth/signup`
-2. **Inline role selection** via radio buttons: "Skill Provider" or "Project Creator"
-3. User fills registration form (same form for both roles)
-4. Backend sets `userType` in database during registration
+2. User selects the signin with google button and signs in
+3. User get asked who they are - "Skill Provider" or "Project Cretor"
+4. Backend sets `userType` in database after the selection of user's type
 5. Upon login, middleware redirects to role-specific dashboard
 6. Session includes `userType`, `role`, and `isVerified` fields
 
 **Supported Auth Methods**:
-- Email/Password (bcrypt, 12 rounds)
 - Google OAuth
-- GitHub OAuth
 
 ## Technology Stack
 
@@ -60,6 +58,9 @@ The platform implements a **dual-role system** where users choose their role dur
 - **Email**: Nodemailer with Gmail SMTP
 - **Deployment**: Vercel (with daily cron jobs for Hobby plan)
 - **File Uploads**: Cloudinary (optional)
+
+### UI/UX
+* Everything should be in light theme only. Modern, minimal and profesional looking.
 
 ## Database Schema (Prisma)
 
@@ -421,7 +422,7 @@ NEXT_PUBLIC_RAZORPAY_KEY_ID=""
 ## Key Development Principles
 
 1. **Real Data Only**: No seed data in production. All users register through signup flow.
-2. **Role Selection**: Users MUST choose their role (Provider/Creator) during signup with inline radio buttons.
+2. **Role Selection**: Users MUST choose their role (Provider/Creator) during signup.
 3. **Separate Dashboards**: Each role gets a completely different dashboard experience.
 4. **Permission Enforcement**: Middleware and API routes enforce role-based permissions strictly.
 5. **India-First**: Use Razorpay for payments, OpenStreetMap for maps, India timezone for emails.
@@ -430,15 +431,6 @@ NEXT_PUBLIC_RAZORPAY_KEY_ID=""
 8. **Security**: bcrypt password hashing, JWT sessions, CSRF protection, input validation.
 9. **Performance**: Optimized queries, proper indexing, connection pooling.
 10. **Accessibility**: ARIA labels, keyboard navigation, screen reader support.
-
-## Critical Implementation Requirements
-
-### Signup Page (`/auth/signup`)
-- **MUST** show inline role selection with radio buttons
-- Options: "I am a Skill Provider" and "I am a Project Creator"
-- Descriptions explaining each role
-- Same form for both roles, but radio selection determines `userType`
-- Submit creates user with selected `userType` in database
 
 ### Dashboard Routing
 - `/dashboard` → Redirects based on session.user.userType
@@ -476,22 +468,6 @@ NEXT_PUBLIC_RAZORPAY_KEY_ID=""
 6. **Start Command**: `npm start` (auto-detected)
 7. **Node Version**: 18.x
 
-## Common Issues & Solutions
-
-### Issue: "Cannot read properties of undefined (reading 'userType')"
-**Solution**: Ensure NextAuth callbacks fetch userType from database and add to JWT token
-
-### Issue: Users can access wrong dashboard
-**Solution**: Check middleware.ts is properly protecting routes based on userType
-
-### Issue: Role selection not working on signup
-**Solution**: Verify RadioGroup component is installed (`@radix-ui/react-radio-group`)
-
-### Issue: Email notifications not sending
-**Solution**: Check Gmail app password is set correctly, not regular password
-
-### Issue: Geo-search returns no results
-**Solution**: Verify listings have lat/lng coordinates and use subquery approach
 
 ## File Structure Summary
 
@@ -520,7 +496,6 @@ src/
 ## Final Notes
 
 - **NO SEED DATA**: Users register themselves
-- **INLINE ROLE SELECTION**: Radio buttons on signup page
 - **STRICT PERMISSIONS**: Middleware + API checks
 - **INDIA-SPECIFIC**: Razorpay + OpenStreetMap
 - **PRODUCTION READY**: Fully functional with real users
@@ -925,42 +900,5 @@ Example step: (see full YAML later in documentation)
 * Both integrations are production-ready and widely used in India
 * Cost: Razorpay charges ~2% per transaction; OpenStreetMap is completely free
 
-## Deliverables & commit strategy
-
-* Deliver in these milestones (each as a PR):
-
-  1. Project scaffold + auth (NextAuth) + Prisma + seed + dev README
-  2. Listings creation + discovery + geo search
-  3. Profile, badges, endorsements
-  4. Booking flow + calendar UI + conflict detection
-  5. Reminders + background jobs + email notifications
-  6. Credits system + transactions + top-up
-  7. Community projects
-  8. Tests + CI + accessibility checks
-  9. Polish: responsive UI, dark mode, translations
-  10. Deployment: Vercel configuration and production smoke-test
-
-## PR template and commit message samples
-
-* PR title: `feat(listings): add create/list endpoints and discovery`
-* Body: Short description, screenshots, test plan, migrations included, any env var changes, reviewer checklist.
-
-## Developer tips for Copilot interaction in VS Code
-
-* Work in small chunks: ask Copilot to generate a single component or API file per request, commit, then ask for tests for that file.
-* Use `// TODO: acceptance-test` comments inside generated functions to prompt Copilot to add test scaffolding.
-* Use `/* agent: run-task <task-name> */` convention in comments to list tasks; the agent should turn each into a commit.
-* Use inline example requests in PR descriptions so Copilot can run against test data.
-
-## Final checklist before merge to main
-
-* All tests pass, coverage threshold met
-* E2E tests pass on GH Actions
-* Basic accessibility checks pass
-* Environment variables documented
-* Database migration included and seed script present
-* No console errors and no high-severity security issues from a quick scan
-
---- END OF AGENT PROMPT
-
-````
+### UI/UX
+* Everything should be in light theme only. Modern, minimal and profesional looking.

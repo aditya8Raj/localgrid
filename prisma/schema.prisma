@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,6 +6,70 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Authentication
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  passwordHash  String?   // For credentials login
+  
+  // Role System (PRIMARY FEATURE)
+  userType      UserType?  // No default - user must choose role after signup
+  role          UserRole  @default(USER)
+  isVerified    Boolean   @default(false)
+  verifiedAt    DateTime?
+  
+  // Location (for geo-search)
+  locationLat   Float?
+  locationLng   Float?
+  locationCity  String?
+  
+  // Profile
+  bio           String?
+  credits       Int       @default(0)
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  listings      Listing[]
+  bookings      Booking[]
+  reviewsGiven  Review[]  @relation("reviewsGiven")
+  reviewsReceived Review[] @relation("reviewsReceived")
+  badges        VerificationBadge[]
+  endorsementsGiven  Endorsement[] @relation("endorser")
+  endorsementsReceived Endorsement[] @relation("endorsed")
+  projectsOwned CommunityProject[] @relation("owner")
+  projectMemberships ProjectMember[]
+  creditTransactions CreditTransaction[]
+  reportsCreated Report[] @relation("reporter")
+  reportsReceived Report[] @relation("reported")
+  adminLogs     AdminLog[]
+  
+  @@index([userType])
+  @@index([email])
+  @@index([locationLat, locationLng])
+}
+
+enum UserType {
+  SKILL_PROVIDER
+  PROJECT_CREATOR
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
 }
 
 // NextAuth Models
@@ -50,97 +111,70 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Core User Model
-model User {
-  id            String    @id @default(cuid())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  email         String    @unique
-  name          String?
-  emailVerified DateTime?
-  image         String?   // Avatar URL
-  avatarUrl     String?   // Alternative avatar field
-  bio           String?
-  locationLat   Float?
-  locationLng   Float?
-  locationCity  String?
-  passwordHash  String?   // Used if email/password signup
-  role          UserRole  @default(USER)
-  userType      UserType  @default(SKILL_PROVIDER) // Primary role: Provider or Creator
-  credits       Int       @default(0)
-  isVerified    Boolean   @default(false) // Admin verification status
-  verifiedAt    DateTime?
+// ============================================
+// LISTING & BOOKING MODELS
+// ============================================
 
-  accounts      Account[]
-  sessions      Session[]
-  listings      Listing[]
-  bookings      Booking[]
-  reviewsGiven   Review[] @relation("reviewsGiven")
-  reviewsReceived Review[] @relation("reviewsReceived")
-  badges        VerificationBadge[]
-  endorsementsGiven  Endorsement[] @relation("endorser")
-  endorsementsReceived Endorsement[] @relation("endorsed")
-  projectsOwned CommunityProject[] @relation("owner")
-  projectMemberships ProjectMember[]
-  transactions  CreditTransaction[]
-
-  @@index([email])
-  @@index([locationLat, locationLng])
-  @@index([userType])
-}
-
-enum UserRole {
-  USER
-  MODERATOR
-  ADMIN
-}
-
-enum UserType {
-  SKILL_PROVIDER    // People offering skills/services
-  PROJECT_CREATOR   // People posting projects and hiring
-}
-
-// Listings (Skills offered by users)
 model Listing {
   id          String   @id @default(cuid())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  // Basic Info
   title       String
-  description String
-  skillTags   String[]  // e.g., ["guitar", "spanish"]
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId     String
+  description String   @db.Text
+  skillTags   String[] // e.g., ["guitar", "spanish", "web-development"]
+  
+  // Geo-location for radius search
   lat         Float
   lng         Float
-  priceCents  Int?     // optional price, or 0 for barter/credit-based
+  
+  // Pricing & Duration
+  priceCents  Int?     // Price in paise (INR), null for barter/credit-only
   durationMins Int
   isActive    Boolean  @default(true)
-  reviews     Review[]
+  
+  // Relations
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     String
   bookings    Booking[]
-
+  reviews     Review[]
+  
   @@index([ownerId])
   @@index([lat, lng])
   @@index([isActive])
+  @@index([skillTags])
 }
 
-// Booking and Scheduling
 model Booking {
   id            String   @id @default(cuid())
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Schedule
+  startAt       DateTime
+  endAt         DateTime
+  
+  // Status
+  status        BookingStatus @default(PENDING)
+  
+  // Payment
+  priceCents    Int?
+  creditsUsed   Int?
+  
+  // Reminder system
+  reminderSent  Boolean @default(false)
+  
+  // Relations
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId        String
   listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   listingId     String
-  startAt       DateTime
-  endAt         DateTime
-  status        BookingStatus @default(PENDING)
-  priceCents    Int?
-  creditsUsed   Int?
-  reminderSent  Boolean @default(false)
-
+  
   @@index([userId])
   @@index([listingId])
-  @@index([startAt])
+  @@index([status])
+  @@index([startAt, endAt])
 }
 
 enum BookingStatus {
@@ -151,71 +185,103 @@ enum BookingStatus {
   DECLINED
 }
 
-// Reviews and Ratings
+// ============================================
+// REVIEW & REPUTATION MODELS
+// ============================================
+
 model Review {
   id         String   @id @default(cuid())
-  rating     Int      // 1-5
-  comment    String?
   createdAt  DateTime @default(now())
+  
+  // Rating & Comment
+  rating     Int      // 1-5
+  comment    String?  @db.Text
+  
+  // Relations
   reviewer   User     @relation("reviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
   reviewerId String
   subject    User     @relation("reviewsReceived", fields: [subjectId], references: [id], onDelete: Cascade)
   subjectId  String
-  listing    Listing? @relation(fields: [listingId], references: [id])
+  listing    Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
   listingId  String?
-
+  
   @@index([reviewerId])
   @@index([subjectId])
+  @@index([listingId])
 }
 
-// Skill Endorsements
 model Endorsement {
   id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  
+  // Skill being endorsed
+  skill     String
+  
+  // Relations
   from      User     @relation("endorser", fields: [fromId], references: [id], onDelete: Cascade)
   fromId    String
   to        User     @relation("endorsed", fields: [toId], references: [id], onDelete: Cascade)
   toId      String
-  skill     String
-  createdAt DateTime @default(now())
-
-  @@index([fromId])
+  
+  @@unique([fromId, toId, skill])
   @@index([toId])
+  @@index([fromId])
 }
 
-// Verification Badges
 model VerificationBadge {
-  id       String   @id @default(cuid())
-  provider String   // e.g., "credly"
-  badgeId  String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId   String
-  issuedAt DateTime @default(now())
-
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  issuedAt  DateTime @default(now())
+  
+  // Badge Info
+  provider  String   // e.g., "credly", "coursera"
+  badgeId   String
+  badgeName String?
+  badgeUrl  String?
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  
   @@index([userId])
 }
 
-// Community Projects
+// ============================================
+// COMMUNITY PROJECTS
+// ============================================
+
 model CommunityProject {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  // Project Info
   title       String
-  description String
-  owner       User     @relation("owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  description String        @db.Text
+  status      ProjectStatus @default(ACTIVE)
+  
+  // Relations
+  owner       User          @relation("owner", fields: [ownerId], references: [id], onDelete: Cascade)
   ownerId     String
   members     ProjectMember[]
-  status      ProjectStatus @default(ACTIVE)
-
+  
   @@index([ownerId])
+  @@index([status])
 }
 
 model ProjectMember {
-  id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  createdAt DateTime    @default(now())
+  
+  // Member role in project
+  role      ProjectRole @default(MEMBER)
+  
+  // Relations
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   project   CommunityProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId String
-  role      ProjectRole @default(MEMBER)
-
+  
   @@unique([userId, projectId])
   @@index([userId])
   @@index([projectId])
@@ -232,64 +298,73 @@ enum ProjectRole {
   MANAGER
 }
 
-// Credit/Token System Transactions
+// ============================================
+// CREDITS & TRANSACTIONS
+// ============================================
+
 model CreditTransaction {
   id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  
+  // Transaction details
+  amount    Int      // Positive or negative
+  reason    String?
+  
+  // Payment details (if applicable)
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  
+  // Relations
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  amount    Int      // positive or negative
-  reason    String?
-  createdAt DateTime @default(now())
-
+  
   @@index([userId])
   @@index([createdAt])
 }
 
-// Admin Activity Logs
-model AdminLog {
-  id        String   @id @default(cuid())
-  adminEmail String  // Admin who performed the action
-  action    String   // e.g., "VERIFY_USER", "APPROVE_BADGE", "BAN_USER"
-  targetType String  // e.g., "USER", "LISTING", "PROJECT"
-  targetId  String   // ID of the affected entity
-  details   String?  // JSON or text details
-  createdAt DateTime @default(now())
+// ============================================
+// MODERATION & ADMIN
+// ============================================
 
-  @@index([adminEmail])
-  @@index([createdAt])
-  @@index([targetId])
-}
-
-// Report System (for users to report issues)
 model Report {
-  id          String   @id @default(cuid())
-  reporterEmail String // Email of the reporter
-  reportType  ReportType
-  targetType  String   // "USER", "LISTING", "PROJECT"
-  targetId    String
-  reason      String
-  description String?
-  status      ReportStatus @default(PENDING)
-  resolvedBy  String?  // Admin email who resolved it
-  resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
-
-  @@index([reporterEmail])
+  id         String       @id @default(cuid())
+  createdAt  DateTime     @default(now())
+  
+  // Report details
+  reason     String
+  description String?     @db.Text
+  status     ReportStatus @default(PENDING)
+  
+  // Relations
+  reporter   User         @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporterId String
+  reported   User         @relation("reported", fields: [reportedId], references: [id], onDelete: Cascade)
+  reportedId String
+  
+  @@index([reporterId])
+  @@index([reportedId])
   @@index([status])
-  @@index([createdAt])
-}
-
-enum ReportType {
-  SPAM
-  INAPPROPRIATE
-  SCAM
-  HARASSMENT
-  OTHER
 }
 
 enum ReportStatus {
   PENDING
-  INVESTIGATING
+  REVIEWED
   RESOLVED
   DISMISSED
+}
+
+model AdminLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  
+  // Action details
+  action    String
+  details   String?  @db.Text
+  
+  // Relations
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  adminId   String
+  
+  @@index([adminId])
+  @@index([createdAt])
 }
