@@ -7,7 +7,7 @@ declare module 'next-auth' {
       email: string;
       name?: string | null;
       image?: string | null;
-      userType: UserType;
+      userType: UserType | null;
       role: UserRole;
       isVerified: boolean;
     };
@@ -18,7 +18,7 @@ declare module 'next-auth' {
     email: string;
     name?: string | null;
     image?: string | null;
-    userType: UserType;
+    userType: UserType | null;
     role: UserRole;
     isVerified: boolean;
   }

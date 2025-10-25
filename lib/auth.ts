@@ -44,8 +44,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (dbUser && session.user) {
         session.user.id = dbUser.id;
-        session.user.userType = dbUser.userType as 'SKILL_PROVIDER' | 'PROJECT_CREATOR' | null;
-        session.user.role = dbUser.role as 'USER' | 'MODERATOR' | 'ADMIN';
+        session.user.userType = dbUser.userType;
+        session.user.role = dbUser.role;
         session.user.isVerified = dbUser.isVerified;
       }
 
