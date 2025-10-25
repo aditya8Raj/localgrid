@@ -1,280 +1,388 @@
-# LocalGrid - Setup Guide
+# LocalGrid - Complete Setup Guide
 
-## Prerequisites
+This guide will walk you through setting up the LocalGrid platform from scratch.
 
-- Node.js 18+ and npm 9+
-- PostgreSQL database (Neon account recommended)
-- Google Cloud account (for OAuth)
-- GitHub account (for OAuth)
+## Table of Contents
 
-## Quick Setup
+1. [Initial Setup](#initial-setup)
+2. [Database Configuration (Neon)](#database-configuration-neon)
+3. [OAuth Provider Setup](#oauth-provider-setup)
+4. [Environment Variables](#environment-variables)
+5. [Database Migrations](#database-migrations)
+6. [Running the Application](#running-the-application)
+7. [Deployment to Vercel](#deployment-to-vercel)
+8. [Troubleshooting](#troubleshooting)
 
-### 1. Install Dependencies
+## Initial Setup
 
-```bash
-chmod +x setup.sh
-./setup.sh
-```
+### 1. Clone and Install
 
-Or manually:
-
-```bash
+\`\`\`bash
+git clone <repository-url>
+cd localgrid
 npm install
-```
+\`\`\`
 
-### 2. Database Setup (Neon)
+### 2. Verify Installation
 
-1. Go to [Neon Console](https://console.neon.tech/)
-2. Create a new project
-3. Copy the connection string
-4. Add to `.env` as `DATABASE_URL`
+Check that all dependencies are installed:
 
-Your connection string should look like:
-```
-postgresql://username:password@ep-xxx.region.aws.neon.tech/database?sslmode=require
-```
+\`\`\`bash
+npm list next next-auth @prisma/client
+\`\`\`
 
-### 3. Environment Variables
+## Database Configuration (Neon)
+
+### 1. Create Neon Account
+
+1. Go to [https://console.neon.tech/](https://console.neon.tech/)
+2. Sign up for a free account
+3. Create a new project
+
+### 2. Get Connection Strings
+
+In your Neon dashboard:
+
+1. Navigate to your project
+2. Click on "Connection Details"
+3. Copy two connection strings:
+   - **Pooled connection** (for DATABASE_URL)
+   - **Direct connection** (for DIRECT_URL)
+
+Example format:
+\`\`\`
+Pooled: postgresql://user:pass@host.neon.tech/dbname?sslmode=require
+Direct: postgresql://user:pass@host.neon.tech/dbname?sslmode=require&connect_timeout=10
+\`\`\`
+
+## OAuth Provider Setup
+
+### Google OAuth Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable "Google+ API"
+4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+5. Configure consent screen:
+   - Application name: LocalGrid
+   - Authorized domains: localhost (dev), your-domain.com (prod)
+6. Create OAuth 2.0 Client ID:
+   - Application type: Web application
+   - Authorized redirect URIs:
+     - Development: \`http://localhost:3000/api/auth/callback/google\`
+     - Production: \`https://your-domain.com/api/auth/callback/google\`
+7. Copy Client ID and Client Secret
+
+### GitHub OAuth Setup
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click "New OAuth App"
+3. Fill in details:
+   - Application name: LocalGrid
+   - Homepage URL: \`http://localhost:3000\` (dev) or your domain
+   - Authorization callback URL:
+     - Development: \`http://localhost:3000/api/auth/callback/github\`
+     - Production: \`https://your-domain.com/api/auth/callback/github\`
+4. Click "Register application"
+5. Copy Client ID
+6. Generate Client Secret and copy it
+
+## Environment Variables
+
+### 1. Create .env File
 
 Copy the example file:
-```bash
+
+\`\`\`bash
 cp .env.example .env
-```
+\`\`\`
 
-Update the following in `.env`:
+### 2. Fill in Values
 
-#### Required:
-- `DATABASE_URL` - Your Neon database connection string
-- `NEXTAUTH_SECRET` - Generate with: `openssl rand -base64 32`
-- `NEXTAUTH_URL` - `http://localhost:3000` for development
-- `NEXT_PUBLIC_APP_URL` - `http://localhost:3000` for development
+Edit \`.env\` with your actual values:
 
-#### OAuth Setup:
+\`\`\`env
+# Database
+DATABASE_URL="postgresql://user:pass@host.neon.tech/dbname?sslmode=require"
+DIRECT_URL="postgresql://user:pass@host.neon.tech/dbname?sslmode=require&connect_timeout=10"
 
-**Google OAuth:**
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create new project or select existing
-3. Enable Google+ API
-4. Go to Credentials → Create Credentials → OAuth client ID
-5. Application type: Web application
-6. Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`
-7. Copy Client ID and Client Secret to `.env`
+# NextAuth Secret - Generate using: openssl rand -base64 32
+NEXTAUTH_SECRET="your-generated-secret-here"
+NEXTAUTH_URL="http://localhost:3000"
 
-**GitHub OAuth:**
-1. Go to GitHub Settings → Developer settings → OAuth Apps
-2. Click "New OAuth App"
-3. Application name: LocalGrid (Dev)
-4. Homepage URL: `http://localhost:3000`
-5. Authorization callback URL: `http://localhost:3000/api/auth/callback/github`
-6. Copy Client ID and Client Secret to `.env`
+# Google OAuth
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
-### 4. Database Migration
+# GitHub OAuth
+GITHUB_ID="your-github-client-id"
+GITHUB_SECRET="your-github-client-secret"
 
-Push the Prisma schema to your database:
+# App URL
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+\`\`\`
 
-```bash
-npm run db:push
-```
+### 3. Generate NextAuth Secret
 
-Optional - View your database:
-```bash
-npm run db:studio
-```
+Run this command to generate a secure secret:
 
-### 5. Run Development Server
+\`\`\`bash
+openssl rand -base64 32
+\`\`\`
 
-```bash
+Copy the output and use it for \`NEXTAUTH_SECRET\`.
+
+## Database Migrations
+
+### 1. Generate Prisma Client
+
+\`\`\`bash
+npx prisma generate
+\`\`\`
+
+This creates the Prisma Client based on your schema.
+
+### 2. Push Schema to Database
+
+For development (creates tables without migrations):
+
+\`\`\`bash
+npx prisma db push
+\`\`\`
+
+For production (with migration history):
+
+\`\`\`bash
+npx prisma migrate dev --name init
+\`\`\`
+
+### 3. Verify Database
+
+Open Prisma Studio to view your database:
+
+\`\`\`bash
+npx prisma studio
+\`\`\`
+
+This opens a GUI at \`http://localhost:5555\`.
+
+## Running the Application
+
+### Development Mode
+
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
-Visit [http://localhost:3000](http://localhost:3000)
+Application will be available at: \`http://localhost:3000\`
 
-## Common Issues
+### Production Build
 
-### "Cannot find module" errors
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Database connection errors
-- Verify DATABASE_URL in .env
-- Ensure Neon project is active
-- Check firewall/network settings
-
-### OAuth errors
-- Verify redirect URIs match exactly
-- Check that OAuth apps are enabled
-- Ensure client IDs and secrets are correct
-
-### Build errors
-```bash
+\`\`\`bash
+# Build the application
 npm run build
-```
-Check for TypeScript errors and fix them
 
-## Production Deployment (Vercel)
+# Start production server
+npm start
+\`\`\`
 
-### 1. Push to GitHub
+### First Time Setup
 
-```bash
-git init
+1. Visit \`http://localhost:3000\`
+2. Click "Get Started" or "Sign Up"
+3. Create an account using:
+   - Email/Password
+   - Google OAuth
+   - GitHub OAuth
+4. Complete your profile
+5. Start exploring features!
+
+## Deployment to Vercel
+
+### 1. Prepare for Deployment
+
+Ensure your code is pushed to GitHub:
+
+\`\`\`bash
 git add .
 git commit -m "Initial commit"
-git remote add origin <your-repo-url>
-git push -u origin main
-```
+git push origin main
+\`\`\`
 
 ### 2. Deploy to Vercel
 
-1. Go to [Vercel](https://vercel.com)
-2. Import your GitHub repository
-3. Add environment variables in Vercel dashboard (copy from .env)
-4. Update these variables for production:
-   - `NEXTAUTH_URL` → Your production domain
-   - `NEXT_PUBLIC_APP_URL` → Your production domain
-5. Update OAuth redirect URIs:
-   - Google: Add `https://yourdomain.com/api/auth/callback/google`
-   - GitHub: Add `https://yourdomain.com/api/auth/callback/github`
-6. Deploy!
+#### Option A: Vercel CLI
 
-### 3. Post-Deployment
+\`\`\`bash
+# Install Vercel CLI
+npm i -g vercel
 
-- Test authentication flows
-- Verify database connections
-- Check all features work correctly
+# Deploy
+vercel
+\`\`\`
 
-## Development Workflow
+#### Option B: Vercel Dashboard
 
-### Adding New Features
+1. Go to [vercel.com](https://vercel.com)
+2. Click "New Project"
+3. Import your GitHub repository
+4. Vercel will auto-detect Next.js
 
-1. Create feature branch
-```bash
-git checkout -b feature/your-feature
-```
+### 3. Configure Environment Variables
 
-2. Make changes and test
+In Vercel dashboard:
 
-3. Commit and push
-```bash
-git add .
-git commit -m "Add feature: description"
-git push origin feature/your-feature
-```
+1. Go to Project Settings → Environment Variables
+2. Add all variables from your \`.env\` file:
 
-4. Create Pull Request
+\`\`\`
+DATABASE_URL
+DIRECT_URL
+NEXTAUTH_SECRET
+NEXTAUTH_URL (update to your Vercel domain)
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+GITHUB_ID
+GITHUB_SECRET
+NEXT_PUBLIC_APP_URL (update to your Vercel domain)
+\`\`\`
 
-### Database Changes
+### 4. Update OAuth Redirect URLs
 
-1. Update `prisma/schema.prisma`
+#### Google:
+1. Go to Google Cloud Console
+2. Add Vercel URL to authorized redirect URIs:
+   - \`https://your-app.vercel.app/api/auth/callback/google\`
 
-2. Push changes
-```bash
-npm run db:push
-```
+#### GitHub:
+1. Go to GitHub OAuth App settings
+2. Update Authorization callback URL:
+   - \`https://your-app.vercel.app/api/auth/callback/github\`
 
-3. For production migrations:
-```bash
-npm run db:migrate
-```
+### 5. Redeploy
 
-### Testing Locally
+After updating environment variables:
 
-Test production build:
-```bash
-npm run build
-npm run start
-```
+\`\`\`bash
+vercel --prod
+\`\`\`
 
-## Project Structure
+Or trigger a redeploy from Vercel dashboard.
 
-```
-localgrid/
-├── app/                    # Next.js 14 App Router
-│   ├── api/               # API routes
-│   │   └── auth/         # Authentication endpoints
-│   ├── auth/             # Auth pages (signin/signup)
-│   ├── dashboard/        # Protected dashboard area
-│   ├── globals.css       # Global styles
-│   ├── layout.tsx        # Root layout
-│   └── page.tsx          # Home page (redirects)
-│
-├── components/           # React components
-│   ├── layout/          # Layout components (nav, footer)
-│   └── ui/              # Shadcn UI components
-│
-├── lib/                 # Utilities and helpers
-│   ├── auth.ts         # Authentication utilities
-│   ├── prisma.ts       # Prisma client instance
-│   ├── utils.ts        # General utilities
-│   └── validations.ts  # Zod validation schemas
-│
-├── prisma/
-│   └── schema.prisma   # Database schema
-│
-├── config/
-│   └── site.ts         # Site configuration
-│
-├── types/              # TypeScript type definitions
-│
-├── public/             # Static assets
-│
-├── auth.config.ts      # NextAuth configuration
-├── middleware.ts       # Route protection middleware
-└── package.json        # Dependencies and scripts
-```
+## Troubleshooting
 
-## Available Scripts
+### Common Issues
 
-```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Lint code
-npm run db:push      # Push schema changes to database
-npm run db:studio    # Open Prisma Studio
-npm run db:migrate   # Create migration
-```
+#### 1. Database Connection Error
 
-## Features Checklist
+**Error:** "Can't reach database server"
 
-After setup, you should have:
+**Solution:**
+- Verify DATABASE_URL is correct
+- Check Neon database is active
+- Ensure IP allowlist includes your location (if configured)
 
-- ✅ User authentication (Email, Google, GitHub)
-- ✅ User profiles with location
-- ✅ Skill listings and browsing
-- ✅ Geolocation-based search
-- ✅ Booking system
-- ✅ Review and rating system
-- ✅ Credit system
-- ✅ Community projects
-- ✅ Messaging system
-- ✅ Notifications
-- ✅ Dark mode
-- ✅ Responsive design
+#### 2. OAuth Not Working
 
-## Next Steps
+**Error:** "OAuth callback error"
 
-1. **Complete your profile** - Add location and bio
-2. **List your first skill** - Share what you can offer
-3. **Browse nearby skills** - See what neighbors are offering
-4. **Join or create a project** - Collaborate with community
-5. **Start earning credits** - Exchange skills
+**Solutions:**
+- Verify redirect URLs match exactly
+- Check Client ID and Secret are correct
+- Ensure OAuth provider is enabled in their console
+- Clear browser cookies and try again
 
-## Support
+#### 3. Build Errors
 
-- 📖 Documentation: See README.md
-- 🐛 Issues: GitHub Issues
-- 💬 Community: GitHub Discussions
+**Error:** "Module not found" or "Type error"
 
-## Security Notes
+**Solutions:**
+\`\`\`bash
+# Clear cache and reinstall
+rm -rf .next node_modules package-lock.json
+npm install
+npm run dev
+\`\`\`
 
-- Never commit `.env` file
-- Use strong NEXTAUTH_SECRET
-- Keep OAuth credentials secure
-- Enable 2FA on provider accounts
-- Review Vercel security settings
+#### 4. Prisma Client Issues
+
+**Error:** "PrismaClient is unable to be run in the browser"
+
+**Solutions:**
+\`\`\`bash
+# Regenerate Prisma Client
+npx prisma generate
+
+# Clear Next.js cache
+rm -rf .next
+\`\`\`
+
+#### 5. Environment Variables Not Loading
+
+**Solutions:**
+- Restart development server after changing .env
+- Verify variable names (no typos)
+- Check variables start with NEXT_PUBLIC_ for client-side use
+- In Vercel, redeploy after adding env vars
+
+### Database Issues
+
+#### Reset Database
+
+If you need to reset your database:
+
+\`\`\`bash
+# Push schema (overwrites existing)
+npx prisma db push --force-reset
+\`\`\`
+
+⚠️ **Warning:** This will delete all data!
+
+#### View Database Logs
+
+\`\`\`bash
+# See all Prisma queries
+npx prisma studio
+\`\`\`
+
+### Getting Help
+
+If you're still stuck:
+
+1. Check [Next.js Documentation](https://nextjs.org/docs)
+2. Check [NextAuth Documentation](https://next-auth.js.org/)
+3. Check [Prisma Documentation](https://www.prisma.io/docs)
+4. Open an issue on GitHub
+5. Join our community Discord
+
+## Security Checklist
+
+Before going to production:
+
+- [ ] Change all default secrets
+- [ ] Enable HTTPS only
+- [ ] Set up proper CORS policies
+- [ ] Configure rate limiting
+- [ ] Enable Vercel authentication logs
+- [ ] Set up error monitoring (Sentry)
+- [ ] Configure backup strategy
+- [ ] Review and limit OAuth scopes
+- [ ] Enable two-factor authentication for admin accounts
+- [ ] Set up security headers in next.config.ts
+
+## Performance Optimization
+
+Recommended optimizations:
+
+- [ ] Enable Vercel Edge Caching
+- [ ] Configure Image Optimization
+- [ ] Set up CDN for static assets
+- [ ] Enable Prisma connection pooling
+- [ ] Implement data caching strategy
+- [ ] Set up monitoring (Vercel Analytics)
 
 ---
 
-Happy coding! 🚀
+**Setup Complete!** 🎉
+
+Your LocalGrid instance should now be running. Visit the application and start building your community!

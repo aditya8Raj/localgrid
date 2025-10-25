@@ -1,4 +1,6 @@
-// This is your Prisma schema file
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,83 +8,10 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// User model with authentication
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          UserRole  @default(USER)
-  
-  // Profile information
-  bio           String?   @db.Text
-  phone         String?
-  dateOfBirth   DateTime?
-  
-  // Location data
-  address       String?
-  city          String?
-  state         String?
-  country       String?   @default("USA")
-  zipCode       String?
-  latitude      Float?
-  longitude     Float?
-  searchRadius  Int       @default(10) // in kilometers
-  
-  // Verification and reputation
-  verified      Boolean   @default(false)
-  verifiedAt    DateTime?
-  reputation    Float     @default(0)
-  totalRatings  Int       @default(0)
-  
-  // Credits system
-  credits       Int       @default(100)
-  
-  // Settings
-  isAvailable   Boolean   @default(true)
-  language      String    @default("en")
-  timezone      String    @default("UTC")
-  
-  // Accessibility preferences
-  accessibilityPreferences Json?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  // Relations
-  accounts      Account[]
-  sessions      Session[]
-  skills        Skill[]
-  skillRequests SkillRequest[]
-  bookings      Booking[]
-  receivedBookings Booking[] @relation("SkillProvider")
-  reviews       Review[]
-  receivedReviews Review[] @relation("ReviewReceiver")
-  badges        UserBadge[]
-  transactions  Transaction[]
-  projectMembers ProjectMember[]
-  projectsCreated Project[] @relation("ProjectCreator")
-  notifications Notification[]
-  messages      Message[]
-  conversations ConversationParticipant[]
-  
-  @@index([email])
-  @@index([latitude, longitude])
-  @@index([city, state])
-  @@map("users")
-}
-
-enum UserRole {
-  USER
-  ADMIN
-  MODERATOR
-}
-
-// NextAuth models
+// NextAuth Models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -96,11 +25,11 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([provider, providerAccountId])
-  @@map("accounts")
+  @@index([userId])
 }
 
 model Session {
@@ -109,510 +38,251 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("sessions")
+
+  @@index([userId])
 }
 
 model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-  
+
   @@unique([identifier, token])
-  @@map("verification_tokens")
 }
 
-// Skill model
+// Core User Model
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  password      String?   // For email/password authentication
+  image         String?
+  bio           String?   @db.Text
+  phone         String?
+  location      String?
+  latitude      Float?
+  longitude     Float?
+  radiusKm      Int       @default(10) // Search radius preference
+  verified      Boolean   @default(false) // Account verification status
+  
+  // Reputation
+  rating        Float     @default(0)
+  totalReviews  Int       @default(0)
+  credlyBadgeUrl String?  // Digital badge verification
+  
+  // Token/Credit System
+  credits       Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  skills        Skill[]
+  skillRequests SkillRequest[]
+  bookingsAsProvider Booking[] @relation("ProviderBookings")
+  bookingsAsRequester Booking[] @relation("RequesterBookings")
+  reviewsGiven  Review[]  @relation("ReviewsGiven")
+  reviewsReceived Review[] @relation("ReviewsReceived")
+  endorsements  Endorsement[]
+  projectsCreated Project[] @relation("ProjectCreator")
+  projectMembers ProjectMember[]
+  transactions  Transaction[]
+  notifications Notification[]
+
+  @@index([email])
+  @@index([latitude, longitude])
+}
+
+// Skills offered by users
 model Skill {
   id          String   @id @default(cuid())
   userId      String
   title       String
   description String   @db.Text
-  category    SkillCategory
-  subCategory String?
-  level       SkillLevel
+  category    String   // e.g., "Digital Skills", "Crafts", "Tutoring", "Fitness", "Language"
+  level       String   // e.g., "Beginner", "Intermediate", "Expert"
+  hourlyRate  Float?   // Optional pricing
+  available   Boolean  @default(true)
+  tags        String[] // Array of skill tags
   
-  // Pricing
-  pricePerHour Float?
-  currency     String   @default("USD")
-  acceptsCredits Boolean @default(true)
-  creditPrice  Int?     // Price in platform credits
-  
-  // Availability
-  isActive     Boolean  @default(true)
-  availability Json?    // Stores schedule as JSON
-  
-  // Validation
-  isVerified   Boolean  @default(false)
-  verifiedBy   String?
-  verifiedAt   DateTime?
-  
-  // Stats
-  viewCount    Int      @default(0)
-  bookingCount Int      @default(0)
-  
-  tags         String[]
-  imageUrl     String?
-  
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookings     Booking[]
-  reviews      Review[]
-  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+  endorsements Endorsement[]
+
   @@index([userId])
   @@index([category])
-  @@index([isActive])
-  @@map("skills")
 }
 
-enum SkillCategory {
-  TECHNOLOGY
-  ARTS_CRAFTS
-  EDUCATION
-  FITNESS_WELLNESS
-  LANGUAGE
-  BUSINESS
-  HOME_GARDEN
-  MUSIC
-  COOKING
-  OTHER
-}
-
-enum SkillLevel {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
-  EXPERT
-}
-
-// Skill Request model (for learning needs)
+// Learning requests/needs
 model SkillRequest {
   id          String   @id @default(cuid())
   userId      String
   title       String
   description String   @db.Text
-  category    SkillCategory
+  category    String
   budget      Float?
-  currency    String   @default("USD")
-  urgency     RequestUrgency @default(FLEXIBLE)
-  status      RequestStatus  @default(OPEN)
-  
-  tags        String[]
+  urgent      Boolean  @default(false)
+  status      String   @default("open") // "open", "matched", "completed", "closed"
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  expiresAt   DateTime?
-  
+
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
   @@index([category])
   @@index([status])
-  @@map("skill_requests")
 }
 
-enum RequestUrgency {
-  URGENT
-  SOON
-  FLEXIBLE
-}
-
-enum RequestStatus {
-  OPEN
-  IN_PROGRESS
-  FULFILLED
-  CANCELLED
-}
-
-// Booking model
+// Booking and Scheduling
 model Booking {
   id          String   @id @default(cuid())
-  userId      String   // Booker
-  providerId  String   // Skill provider
+  providerId  String   // User providing the skill
+  requesterId String   // User requesting the skill
   skillId     String
   
-  title       String
-  description String?  @db.Text
-  
-  // Schedule
   startTime   DateTime
   endTime     DateTime
-  duration    Int      // in minutes
-  
-  // Location
-  locationType LocationType @default(IN_PERSON)
-  location    String?
-  meetingLink String?
-  
-  // Payment
-  price       Float
-  currency    String   @default("USD")
-  paidWithCredits Boolean @default(false)
-  creditAmount Int?
-  
-  status      BookingStatus @default(PENDING)
-  
-  // Communication
+  status      String   @default("pending") // "pending", "confirmed", "completed", "cancelled"
+  location    String?  // Physical location or "online"
   notes       String?  @db.Text
-  cancellationReason String? @db.Text
+  
+  // Reminders
+  reminderSent Boolean  @default(false)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  provider    User     @relation("SkillProvider", fields: [providerId], references: [id], onDelete: Cascade)
+
+  provider    User     @relation("ProviderBookings", fields: [providerId], references: [id], onDelete: Cascade)
+  requester   User     @relation("RequesterBookings", fields: [requesterId], references: [id], onDelete: Cascade)
   skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
   review      Review?
-  transaction Transaction?
-  
-  @@index([userId])
+
   @@index([providerId])
+  @@index([requesterId])
   @@index([skillId])
   @@index([startTime])
-  @@index([status])
-  @@map("bookings")
 }
 
-enum LocationType {
-  IN_PERSON
-  ONLINE
-  HYBRID
-}
-
-enum BookingStatus {
-  PENDING
-  CONFIRMED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  DISPUTED
-}
-
-// Review model
+// Reviews and Ratings
 model Review {
   id          String   @id @default(cuid())
   bookingId   String   @unique
-  reviewerId  String
-  revieweeId  String
-  skillId     String
+  reviewerId  String   // Person giving the review
+  revieweeId  String   // Person being reviewed
   
-  rating      Int      // 1-5
+  rating      Int      // 1-5 stars
   comment     String?  @db.Text
   
-  // Detailed ratings
-  communication Int?   // 1-5
-  quality       Int?   // 1-5
-  punctuality   Int?   // 1-5
-  
-  helpful     Int      @default(0) // Count of helpful votes
-  
-  response    String?  @db.Text // Response from reviewee
-  respondedAt DateTime?
-  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  reviewer    User     @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
-  reviewee    User     @relation("ReviewReceiver", fields: [revieweeId], references: [id], onDelete: Cascade)
-  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  
+  reviewer    User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewee    User     @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+
   @@index([reviewerId])
   @@index([revieweeId])
+}
+
+// Skill Endorsements
+model Endorsement {
+  id          String   @id @default(cuid())
+  skillId     String
+  endorserId  String   // User giving endorsement
+  
+  createdAt   DateTime @default(now())
+
+  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  endorser    User     @relation(fields: [endorserId], references: [id], onDelete: Cascade)
+
+  @@unique([skillId, endorserId])
   @@index([skillId])
-  @@index([rating])
-  @@map("reviews")
+  @@index([endorserId])
 }
 
-// Badge model for skill verification
-model Badge {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String   @db.Text
-  imageUrl    String
-  category    SkillCategory?
-  
-  // Credly integration
-  credlyBadgeId String?
-  
-  criteria    String   @db.Text
-  isActive    Boolean  @default(true)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  userBadges  UserBadge[]
-  
-  @@map("badges")
-}
-
-model UserBadge {
-  id          String   @id @default(cuid())
-  userId      String
-  badgeId     String
-  
-  awardedBy   String?
-  verificationUrl String?
-  
-  issuedAt    DateTime @default(now())
-  expiresAt   DateTime?
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, badgeId])
-  @@index([userId])
-  @@map("user_badges")
-}
-
-// Transaction model for credits
-model Transaction {
-  id          String   @id @default(cuid())
-  userId      String
-  type        TransactionType
-  amount      Int      // Credits
-  balance     Int      // Balance after transaction
-  
-  bookingId   String?  @unique
-  description String
-  
-  metadata    Json?
-  
-  createdAt   DateTime @default(now())
-  
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  booking     Booking? @relation(fields: [bookingId], references: [id])
-  
-  @@index([userId])
-  @@index([type])
-  @@map("transactions")
-}
-
-enum TransactionType {
-  EARNED
-  SPENT
-  REFUND
-  BONUS
-  DONATION
-  REWARD
-}
-
-// Community Project model
+// Community Projects
 model Project {
   id          String   @id @default(cuid())
   creatorId   String
   title       String
   description String   @db.Text
-  category    SkillCategory
-  
-  // Goals and requirements
-  goals       String   @db.Text
-  requirements String? @db.Text
-  skillsNeeded String[]
-  
-  // Location
+  category    String
+  status      String   @default("open") // "open", "in-progress", "completed", "cancelled"
   location    String?
-  isRemote    Boolean  @default(false)
+  latitude    Float?
+  longitude   Float?
+  maxMembers  Int?
   
-  // Timeline
   startDate   DateTime?
   endDate     DateTime?
   
-  // Participation
-  maxMembers  Int?
-  currentMembers Int   @default(0)
-  
-  status      ProjectStatus @default(OPEN)
-  visibility  ProjectVisibility @default(PUBLIC)
-  
-  imageUrl    String?
-  tags        String[]
-  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   creator     User     @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   members     ProjectMember[]
-  updates     ProjectUpdate[]
-  
+
   @@index([creatorId])
   @@index([status])
   @@index([category])
-  @@map("projects")
 }
 
-enum ProjectStatus {
-  OPEN
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  ON_HOLD
-}
-
-enum ProjectVisibility {
-  PUBLIC
-  PRIVATE
-  COMMUNITY_ONLY
-}
-
+// Project Membership
 model ProjectMember {
   id          String   @id @default(cuid())
   projectId   String
   userId      String
-  role        ProjectRole @default(MEMBER)
-  
-  contribution String? @db.Text
-  hoursContributed Float @default(0)
-  
-  status      MemberStatus @default(PENDING)
+  role        String   @default("member") // "member", "coordinator"
+  status      String   @default("pending") // "pending", "accepted", "rejected"
   
   joinedAt    DateTime @default(now())
-  leftAt      DateTime?
-  
+
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([projectId, userId])
   @@index([projectId])
   @@index([userId])
-  @@map("project_members")
 }
 
-enum ProjectRole {
-  OWNER
-  ADMIN
-  MEMBER
-  CONTRIBUTOR
-}
-
-enum MemberStatus {
-  PENDING
-  ACTIVE
-  INACTIVE
-  REMOVED
-}
-
-model ProjectUpdate {
+// Credit/Token System Transactions
+model Transaction {
   id          String   @id @default(cuid())
-  projectId   String
-  title       String
-  content     String   @db.Text
-  imageUrl    String?
+  userId      String
+  amount      Int      // Can be positive (earned) or negative (spent)
+  type        String   // "earned", "spent", "donated", "bonus"
+  description String
+  relatedId   String?  // Related booking/project ID
   
   createdAt   DateTime @default(now())
-  
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  @@index([projectId])
-  @@map("project_updates")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
-// Notification model
+// Notifications
 model Notification {
   id          String   @id @default(cuid())
   userId      String
-  type        NotificationType
+  type        String   // "booking", "review", "project", "reminder", "system"
   title       String
   message     String   @db.Text
-  
-  actionUrl   String?
-  metadata    Json?
-  
-  isRead      Boolean  @default(false)
-  readAt      DateTime?
+  read        Boolean  @default(false)
+  link        String?  // Link to relevant page
   
   createdAt   DateTime @default(now())
-  
+
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId])
-  @@index([isRead])
-  @@map("notifications")
-}
-
-enum NotificationType {
-  BOOKING_REQUEST
-  BOOKING_CONFIRMED
-  BOOKING_CANCELLED
-  REVIEW_RECEIVED
-  MESSAGE_RECEIVED
-  PROJECT_INVITE
-  PROJECT_UPDATE
-  CREDIT_EARNED
-  BADGE_AWARDED
-  SYSTEM
-}
-
-// Messaging system
-model Conversation {
-  id          String   @id @default(cuid())
-  type        ConversationType @default(DIRECT)
-  title       String?
-  
-  lastMessageAt DateTime @default(now())
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  participants ConversationParticipant[]
-  messages    Message[]
-  
-  @@map("conversations")
-}
-
-enum ConversationType {
-  DIRECT
-  GROUP
-  PROJECT
-}
-
-model ConversationParticipant {
-  id             String   @id @default(cuid())
-  conversationId String
-  userId         String
-  
-  lastReadAt     DateTime?
-  unreadCount    Int      @default(0)
-  
-  joinedAt       DateTime @default(now())
-  leftAt         DateTime?
-  
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([conversationId, userId])
-  @@index([conversationId])
-  @@index([userId])
-  @@map("conversation_participants")
-}
-
-model Message {
-  id             String   @id @default(cuid())
-  conversationId String
-  senderId       String
-  content        String   @db.Text
-  
-  type           MessageType @default(TEXT)
-  attachmentUrl  String?
-  
-  isEdited       Boolean  @default(false)
-  editedAt       DateTime?
-  
-  createdAt      DateTime @default(now())
-  
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  
-  @@index([conversationId])
-  @@index([senderId])
-  @@map("messages")
-}
-
-enum MessageType {
-  TEXT
-  IMAGE
-  FILE
-  SYSTEM
+  @@index([read])
+  @@index([createdAt])
 }
