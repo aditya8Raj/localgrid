@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Loader2, Calendar, Clock, DollarSign, MapPin } from 'lucide-react';
+import { Loader2, Calendar, Clock, DollarSign, MapPin, Wallet, CreditCard } from 'lucide-react';
 import Image from 'next/image';
 
 function BookingForm() {
@@ -26,21 +26,32 @@ function BookingForm() {
       locationCity: string | null;
     };
   } | null>(null);
+  const [userCredits, setUserCredits] = useState<number>(0);
 
   const [formData, setFormData] = useState({
     date: '',
     time: '',
+    paymentMethod: 'credits' as 'credits' | 'cash',
   });
 
   // Fetch listing details
   useEffect(() => {
-    const fetchListing = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/listings/${listingId}`);
-        if (!response.ok) throw new Error('Failed to fetch listing');
+        // Fetch listing
+        const listingResponse = await fetch(`/api/listings/${listingId}`);
+        if (!listingResponse.ok) throw new Error('Failed to fetch listing');
         
-        const data = await response.json();
-        setListing(data.listing);
+        const listingData = await listingResponse.json();
+        setListing(listingData.listing);
+
+        // Fetch user credits
+        const creditsResponse = await fetch('/api/credits/transactions');
+        if (creditsResponse.ok) {
+          const creditsData = await creditsResponse.json();
+          setUserCredits(creditsData.balance || 0);
+        }
+        
         setIsFetching(false);
       } catch {
         setError('Failed to load listing details');
@@ -49,7 +60,7 @@ function BookingForm() {
     };
 
     if (listingId) {
-      fetchListing();
+      fetchData();
     }
   }, [listingId]);
 
@@ -72,6 +83,18 @@ function BookingForm() {
         return;
       }
 
+      // Calculate required credits
+      const creditsRequired = listing.priceCents ? Math.ceil(listing.priceCents / 100) : 0;
+
+      // Check if user has sufficient credits
+      if (formData.paymentMethod === 'credits' && creditsRequired > 0) {
+        if (userCredits < creditsRequired) {
+          setError(`Insufficient credits. You need ${creditsRequired} credits but have only ${userCredits} credits.`);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Combine date and time
       const startAt = new Date(`${formData.date}T${formData.time}`);
       const endAt = new Date(startAt.getTime() + listing.durationMins * 60000);
@@ -85,6 +108,7 @@ function BookingForm() {
           listingId,
           startAt: startAt.toISOString(),
           endAt: endAt.toISOString(),
+          paymentMethod: formData.paymentMethod,
         }),
       });
 
@@ -225,14 +249,94 @@ function BookingForm() {
               </p>
             </div>
 
+            {/* Payment Method Selection */}
+            {listing.priceCents && listing.priceCents > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Payment Method *
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Credits Payment */}
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, paymentMethod: 'credits' })}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      formData.paymentMethod === 'credits'
+                        ? 'border-indigo-600 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Wallet className={`w-6 h-6 ${
+                        formData.paymentMethod === 'credits' ? 'text-indigo-600' : 'text-gray-400'
+                      }`} />
+                      <div className="text-left">
+                        <p className={`font-medium ${
+                          formData.paymentMethod === 'credits' ? 'text-indigo-900' : 'text-gray-900'
+                        }`}>
+                          Credits
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Balance: {userCredits} credits
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Required: {Math.ceil(listing.priceCents / 100)} credits
+                        </p>
+                        {userCredits < Math.ceil(listing.priceCents / 100) && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Insufficient balance
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Cash Payment */}
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, paymentMethod: 'cash' })}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      formData.paymentMethod === 'cash'
+                        ? 'border-indigo-600 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CreditCard className={`w-6 h-6 ${
+                        formData.paymentMethod === 'cash' ? 'text-indigo-600' : 'text-gray-400'
+                      }`} />
+                      <div className="text-left">
+                        <p className={`font-medium ${
+                          formData.paymentMethod === 'cash' ? 'text-indigo-900' : 'text-gray-900'
+                        }`}>
+                          Cash
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Pay in person
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          ₹{(listing.priceCents / 100).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Payment Info */}
             {listing.priceCents && listing.priceCents > 0 && (
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>Payment Required:</strong> ₹{(listing.priceCents / 100).toFixed(2)}
+                  <strong>Total Cost:</strong>{' '}
+                  {formData.paymentMethod === 'credits'
+                    ? `${Math.ceil(listing.priceCents / 100)} credits`
+                    : `₹${(listing.priceCents / 100).toFixed(2)}`}
                 </p>
                 <p className="text-xs text-blue-700 mt-1">
-                  Payment will be processed after the provider confirms your booking.
+                  {formData.paymentMethod === 'credits'
+                    ? 'Credits will be transferred after the provider confirms your booking.'
+                    : 'Cash payment will be collected in person after the session.'}
                 </p>
               </div>
             )}
