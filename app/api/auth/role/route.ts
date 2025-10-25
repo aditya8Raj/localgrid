@@ -60,8 +60,10 @@ export async function POST(request: Request) {
       console.error('Failed to send welcome email:', emailError);
     }
 
+    // CRITICAL: Return special flag to trigger session refresh
     return NextResponse.json({
       success: true,
+      requiresSessionRefresh: true,
       user: {
         id: updatedUser.id,
         email: updatedUser.email,

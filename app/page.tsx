@@ -8,8 +8,16 @@ import Image from 'next/image';
 export default async function Home() {
   const session = await auth();
 
+  console.log('[HomePage] Session check:', {
+    hasSession: !!session,
+    hasUser: !!session?.user,
+    userType: session?.user?.userType || 'null',
+    email: session?.user?.email || 'no-email'
+  });
+
   // If user is authenticated but hasn't selected role, redirect to role selection
   if (session?.user && !session.user.userType) {
+    console.log('[HomePage] Redirecting to role-selection (no userType)');
     redirect('/auth/role-selection');
   }
 
@@ -18,6 +26,7 @@ export default async function Home() {
     const dashboardUrl = session.user.userType === 'SKILL_PROVIDER' 
       ? '/dashboard/provider' 
       : '/dashboard/creator';
+    console.log('[HomePage] Redirecting to dashboard:', dashboardUrl);
     redirect(dashboardUrl);
   }
 

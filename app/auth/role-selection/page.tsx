@@ -40,13 +40,14 @@ function RoleSelectionContent() {
       }
 
       // Role saved successfully!
-      // Determine the callback URL based on role
+      // Force a full page reload to refresh the session
+      // This ensures the JWT token is regenerated with the new userType
       const dashboardUrl = selectedRole === 'SKILL_PROVIDER' 
         ? '/dashboard/provider' 
         : '/dashboard/creator';
       
-      // Redirect to dashboard - session will be updated on next request
-      window.location.href = dashboardUrl;
+      // Use replace to prevent back button issues
+      window.location.replace(dashboardUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setIsLoading(false);

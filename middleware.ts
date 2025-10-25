@@ -24,8 +24,15 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET 
   });
 
+  console.log('[Middleware]', pathname, {
+    hasToken: !!token,
+    userType: token?.userType || 'null',
+    email: token?.email || 'no-email'
+  });
+
   // Redirect unauthenticated users
   if (!token) {
+    console.log('[Middleware] No token, redirecting to signin');
     const signInUrl = new URL('/auth/signin', request.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(signInUrl);
@@ -33,6 +40,7 @@ export async function middleware(request: NextRequest) {
 
   // Check role selection
   if (!token.userType && !pathname.startsWith('/auth/role-selection')) {
+    console.log('[Middleware] No userType, redirecting to role-selection');
     return NextResponse.redirect(new URL('/auth/role-selection', request.url));
   }
 
@@ -40,12 +48,14 @@ export async function middleware(request: NextRequest) {
   if (pathname === '/dashboard') {
     // If no userType, redirect to role selection
     if (!token.userType) {
+      console.log('[Middleware] /dashboard with no userType, redirecting to role-selection');
       return NextResponse.redirect(new URL('/auth/role-selection', request.url));
     }
     
     const dashboardUrl = token.userType === 'SKILL_PROVIDER' 
       ? '/dashboard/provider' 
       : '/dashboard/creator';
+    console.log('[Middleware] /dashboard redirecting to:', dashboardUrl);
     return NextResponse.redirect(new URL(dashboardUrl, request.url));
   }
 

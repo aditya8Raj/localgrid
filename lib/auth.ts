@@ -112,6 +112,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
 
+      // CRITICAL FIX: Always refetch userType if it's missing
+      // This ensures the token is updated after role selection
+      if (!token.userType && token.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email as string },
+          select: {
+            id: true,
+            userType: true,
+            role: true,
+            isVerified: true,
+          },
+        });
+
+        if (dbUser && dbUser.userType) {
+          token.id = dbUser.id;
+          token.userType = dbUser.userType;
+          token.role = dbUser.role;
+          token.isVerified = dbUser.isVerified;
+        }
+      }
+
       // Handle session updates
       if (trigger === 'update' && session) {
         token = { ...token, ...session };
@@ -167,5 +188,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 
-  debug: false, // Disabled to reduce terminal noise
+  debug: process.env.NODE_ENV === 'development', // Enable debug in dev only
+
+  logger: {
+    error(code, ...message) {
+      console.error('[NextAuth Error]', code, message);
+    },
+    warn(code, ...message) {
+      console.warn('[NextAuth Warn]', code, message);
+    },
+    debug(code, ...message) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[NextAuth Debug]', code, message);
+      }
+    },
+  },
 });
