@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { scheduleBookingReminders } from '@/lib/redis';
 
 export async function POST(
   request: Request,
@@ -72,6 +73,15 @@ export async function POST(
         status: 'CONFIRMED',
       },
     });
+
+    // Schedule reminder emails (24h and 1h before booking)
+    try {
+      await scheduleBookingReminders(updatedBooking.id, updatedBooking.startAt);
+      console.log('Reminders scheduled for booking:', updatedBooking.id);
+    } catch (reminderError) {
+      // Log error but don't block confirmation
+      console.error('Failed to schedule reminders:', reminderError);
+    }
 
     return NextResponse.json({
       success: true,
