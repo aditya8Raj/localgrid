@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { Calendar, Clock, DollarSign, MapPin, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ReviewForm } from '@/components/ReviewForm';
 
 async function getBooking(id: string, userId: string) {
   const booking = await prisma.booking.findUnique({
@@ -45,6 +46,16 @@ async function getBooking(id: string, userId: string) {
   return booking;
 }
 
+async function getExistingReview(bookingId: string, userId: string, listingId: string, ownerId: string) {
+  return await prisma.review.findFirst({
+    where: {
+      reviewerId: userId,
+      listingId: listingId,
+      subjectId: ownerId,
+    },
+  });
+}
+
 export default async function BookingDetailPage({ 
   params 
 }: { 
@@ -64,6 +75,11 @@ export default async function BookingDetailPage({
   }
 
   const isCreator = booking.userId === session.user.id;
+
+  // Check if review already exists (for COMPLETED bookings)
+  const existingReview = booking.status === 'COMPLETED' && isCreator
+    ? await getExistingReview(booking.id, session.user.id, booking.listingId, booking.listing.ownerId)
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -253,6 +269,20 @@ export default async function BookingDetailPage({
             </div>
           </div>
         </div>
+
+        {/* Review Form - Show for COMPLETED bookings if creator hasn't reviewed yet */}
+        {booking.status === 'COMPLETED' && isCreator && !existingReview && (
+          <div className="mt-6">
+            <ReviewForm bookingId={booking.id} />
+          </div>
+        )}
+
+        {/* Show message if already reviewed */}
+        {booking.status === 'COMPLETED' && isCreator && existingReview && (
+          <div className="mt-6 bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-lg">
+            <p className="font-medium">You have already reviewed this booking</p>
+          </div>
+        )}
 
         {/* Booking Info */}
         <div className="mt-6 bg-white rounded-lg shadow p-6">

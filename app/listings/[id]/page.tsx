@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { MapPin, Clock, DollarSign, Star } from 'lucide-react';
 import Image from 'next/image';
 import { ListingActions } from '@/components/ListingActions';
+import { ReviewDisplay } from '@/components/ReviewDisplay';
 
 async function getListing(id: string) {
   const listing = await prisma.listing.findUnique({
@@ -140,51 +141,19 @@ export default async function ListingDetailPage({
         </div>
 
         {/* Reviews */}
-        {listing.reviews.length > 0 && (
+        {listing.reviews.length > 0 ? (
           <div className="mt-8 bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Reviews ({listing.reviews.length})
-            </h2>
-            <div className="space-y-6">
-              {listing.reviews.map((review) => (
-                <div key={review.id} className="border-b border-gray-200 pb-6 last:border-0">
-                  <div className="flex items-start gap-4">
-                    {review.reviewer.image && (
-                      <Image
-                        src={review.reviewer.image}
-                        alt={review.reviewer.name || 'Reviewer'}
-                        width={40}
-                        height={40}
-                        className="rounded-full"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="font-medium text-gray-900">{review.reviewer.name}</p>
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i < review.rating
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      {review.comment && (
-                        <p className="text-gray-700">{review.comment}</p>
-                      )}
-                      <p className="text-sm text-gray-500 mt-2">
-                        {new Date(review.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Reviews</h2>
+            <ReviewDisplay 
+              reviews={listing.reviews}
+              averageRating={avgRating}
+              totalReviews={listing.reviews.length}
+            />
+          </div>
+        ) : (
+          <div className="mt-8 bg-white rounded-lg shadow-lg p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Reviews</h2>
+            <p className="text-gray-600">No reviews yet. Book a session and be the first to review!</p>
           </div>
         )}
       </div>
