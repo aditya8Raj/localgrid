@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -49,6 +50,15 @@ export async function POST(request: Request) {
     });
 
     console.log('User updated successfully:', updatedUser.id);
+
+    // Send welcome email with role-specific content
+    try {
+      await sendWelcomeEmail(updatedUser.id);
+      console.log('Welcome email sent to:', updatedUser.email);
+    } catch (emailError) {
+      // Log error but don't block the response
+      console.error('Failed to send welcome email:', emailError);
+    }
 
     return NextResponse.json({
       success: true,
