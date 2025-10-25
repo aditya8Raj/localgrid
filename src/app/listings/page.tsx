@@ -62,12 +62,20 @@ export default function ListingsPage() {
           });
         },
         (error) => {
-          console.error("Geolocation error:", error);
-          // Use default location (Delhi)
+          console.log("Geolocation error code:", error.code);
+          console.log("Geolocation error message:", error.message);
+          // Error codes: 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+          // Use default location (Delhi) regardless of error
           setUserLocation({ lat: 28.6139, lng: 77.209 });
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 0,
         }
       );
     } else {
+      console.log("Geolocation not supported");
       setUserLocation({ lat: 28.6139, lng: 77.209 });
     }
   }, []);
@@ -94,9 +102,11 @@ export default function ListingsPage() {
         if (!response.ok) throw new Error("Failed to fetch listings");
 
         const data = await response.json();
-        setListings(data);
+        console.log("Fetched listings:", data);
+        setListings(data.listings || []); // API returns { listings: [...] }
       } catch (error) {
         console.error("Error fetching listings:", error);
+        setListings([]); // Set empty array on error
       } finally {
         setLoading(false);
       }
