@@ -9,13 +9,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Github, Mail } from "lucide-react"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Github, Mail, Users, Briefcase } from "lucide-react"
 import { toast } from "sonner"
 import axios from "axios"
 
 export default function SignUpPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [userType, setUserType] = useState<"SKILL_PROVIDER" | "PROJECT_CREATOR">("SKILL_PROVIDER")
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -50,6 +52,7 @@ export default function SignUpPage() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        userType: userType,
       })
 
       toast.success("Account created! Signing you in...")
@@ -114,6 +117,39 @@ export default function SignUpPage() {
             <CardDescription>Get started with LocalGrid</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* User Type Selection */}
+            <div className="space-y-3">
+              <Label>I want to join as:</Label>
+              <RadioGroup value={userType} onValueChange={(value: string) => setUserType(value as "SKILL_PROVIDER" | "PROJECT_CREATOR")}>
+                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value="SKILL_PROVIDER" id="provider" />
+                  <Label htmlFor="provider" className="flex items-center gap-3 cursor-pointer flex-1">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">Skill Provider</div>
+                      <div className="text-sm text-muted-foreground">Offer your skills and earn</div>
+                    </div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value="PROJECT_CREATOR" id="creator" />
+                  <Label htmlFor="creator" className="flex items-center gap-3 cursor-pointer flex-1">
+                    <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                      <Briefcase className="h-5 w-5 text-secondary-foreground" />
+                    </div>
+                    <div>
+                      <div className="font-semibold">Project Creator</div>
+                      <div className="text-sm text-muted-foreground">Post projects and hire talent</div>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <Separator />
+
             {/* OAuth Providers */}
             <div className="grid grid-cols-2 gap-4">
               <Button
