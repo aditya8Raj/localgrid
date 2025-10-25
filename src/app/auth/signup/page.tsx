@@ -68,11 +68,11 @@ export default function SignUpPage() {
         router.push("/dashboard")
         router.refresh()
       }
-    } catch (err) {
-      if (err instanceof Error && 'response' in err) {
-        const error = err as { response?: { data?: { error?: string } } }
-        if (error.response?.data?.error) {
-          toast.error(error.response.data.error)
+    } catch (error) {
+      if (error instanceof Error && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: string } } }
+        if (axiosError.response?.data?.error) {
+          toast.error(axiosError.response.data.error)
         } else {
           toast.error("Failed to create account")
         }
@@ -88,7 +88,7 @@ export default function SignUpPage() {
     setIsLoading(true)
     try {
       await signIn(provider, { callbackUrl: "/dashboard" })
-    } catch (err) {
+    } catch {
       toast.error("Failed to sign up")
       setIsLoading(false)
     }

@@ -36,7 +36,7 @@ export default function SignInPage() {
         router.push("/dashboard")
         router.refresh()
       }
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong")
     } finally {
       setIsLoading(false)
@@ -47,7 +47,7 @@ export default function SignInPage() {
     setIsLoading(true)
     try {
       await signIn(provider, { callbackUrl: "/dashboard" })
-    } catch (err) {
+    } catch {
       toast.error("Failed to sign in")
       setIsLoading(false)
     }
