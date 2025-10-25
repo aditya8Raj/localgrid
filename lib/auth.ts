@@ -2,8 +2,10 @@ import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import GoogleProvider from 'next-auth/providers/google';
 import { prisma } from './prisma';
-import type { UserType, UserRole } from '@prisma/client';
 import type { Adapter } from 'next-auth/adapters';
+
+type UserType = 'SKILL_PROVIDER' | 'PROJECT_CREATOR';
+type UserRole = 'USER' | 'MODERATOR' | 'ADMIN';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -130,6 +132,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
 
     async redirect({ url, baseUrl }) {
+      // Allow role selection page
+      if (url.includes('/auth/role-selection')) {
+        return url;
+      }
+
       // Handle OAuth callback redirects
       if (url.startsWith('/auth/signup')) {
         return url;

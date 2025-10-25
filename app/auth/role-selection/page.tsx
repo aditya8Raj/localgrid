@@ -2,7 +2,6 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { signIn } from 'next-auth/react';
 import { Briefcase, Palette } from 'lucide-react';
 
 function RoleSelectionContent() {
@@ -46,11 +45,8 @@ function RoleSelectionContent() {
         ? '/dashboard/provider' 
         : '/dashboard/creator';
       
-      // Sign in again to create a fresh session with the updated userType
-      await signIn('google', { 
-        callbackUrl: dashboardUrl,
-        redirect: true 
-      });
+      // Redirect to dashboard - session will be updated on next request
+      window.location.href = dashboardUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setIsLoading(false);

@@ -8,6 +8,11 @@ import Image from 'next/image';
 export default async function Home() {
   const session = await auth();
 
+  // If user is authenticated but hasn't selected role, redirect to role selection
+  if (session?.user && !session.user.userType) {
+    redirect('/auth/role-selection');
+  }
+
   // Redirect authenticated users to their dashboard
   if (session?.user?.userType) {
     const dashboardUrl = session.user.userType === 'SKILL_PROVIDER' 

@@ -5,6 +5,11 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
+  // Allow role selection page without checks
+  if (pathname === '/auth/role-selection') {
+    return NextResponse.next();
+  }
+  
   // Protected routes that require authentication
   const protectedPaths = ['/dashboard', '/bookings', '/listings/new', '/projects/new', '/admin'];
   const isProtected = protectedPaths.some(path => pathname.startsWith(path));
@@ -33,6 +38,11 @@ export async function middleware(request: NextRequest) {
 
   // Dashboard redirects
   if (pathname === '/dashboard') {
+    // If no userType, redirect to role selection
+    if (!token.userType) {
+      return NextResponse.redirect(new URL('/auth/role-selection', request.url));
+    }
+    
     const dashboardUrl = token.userType === 'SKILL_PROVIDER' 
       ? '/dashboard/provider' 
       : '/dashboard/creator';
