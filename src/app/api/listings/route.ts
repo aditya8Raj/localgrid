@@ -47,8 +47,26 @@ export async function GET(req: NextRequest) {
 
       const listings = await searchListingsNearby(latitude, longitude, radius)
 
+      // Fetch owner data for each listing
+      const listingsWithOwners = await Promise.all(
+        listings.map(async (listing) => {
+          const owner = await prisma.user.findUnique({
+            where: { id: listing.ownerId },
+            select: {
+              id: true,
+              name: true,
+              image: true,
+            },
+          })
+          return {
+            ...listing,
+            owner: owner || { id: listing.ownerId, name: null, image: null },
+          }
+        })
+      )
+
       // Apply additional filters
-      let filtered = listings
+      let filtered = listingsWithOwners
 
       if (tags) {
         const tagArray = tags.split(',').map(t => t.trim().toLowerCase())

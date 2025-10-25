@@ -37,7 +37,7 @@ interface Listing {
   owner: {
     id: string;
     name: string | null;
-    avatarUrl: string | null;
+    image: string | null;
   };
 }
 
@@ -270,8 +270,8 @@ export default function ListingsPage() {
               priceCents={listing.priceCents}
               durationMins={listing.durationMins}
               distance_km={listing.distance_km}
-              ownerName={listing.owner.name || "Anonymous"}
-              ownerAvatar={listing.owner.avatarUrl || undefined}
+              ownerName={listing.owner?.name || "Anonymous"}
+              ownerAvatar={listing.owner?.image || undefined}
             />
           ))}
         </div>

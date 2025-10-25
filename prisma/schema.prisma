@@ -66,7 +66,10 @@ model User {
   locationCity  String?
   passwordHash  String?   // Used if email/password signup
   role          UserRole  @default(USER)
+  userType      UserType  @default(SKILL_PROVIDER) // Primary role: Provider or Creator
   credits       Int       @default(0)
+  isVerified    Boolean   @default(false) // Admin verification status
+  verifiedAt    DateTime?
 
   accounts      Account[]
   sessions      Session[]
@@ -83,12 +86,18 @@ model User {
 
   @@index([email])
   @@index([locationLat, locationLng])
+  @@index([userType])
 }
 
 enum UserRole {
   USER
   MODERATOR
   ADMIN
+}
+
+enum UserType {
+  SKILL_PROVIDER    // People offering skills/services
+  PROJECT_CREATOR   // People posting projects and hiring
 }
 
 // Listings (Skills offered by users)
@@ -234,4 +243,53 @@ model CreditTransaction {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+// Admin Activity Logs
+model AdminLog {
+  id        String   @id @default(cuid())
+  adminEmail String  // Admin who performed the action
+  action    String   // e.g., "VERIFY_USER", "APPROVE_BADGE", "BAN_USER"
+  targetType String  // e.g., "USER", "LISTING", "PROJECT"
+  targetId  String   // ID of the affected entity
+  details   String?  // JSON or text details
+  createdAt DateTime @default(now())
+
+  @@index([adminEmail])
+  @@index([createdAt])
+  @@index([targetId])
+}
+
+// Report System (for users to report issues)
+model Report {
+  id          String   @id @default(cuid())
+  reporterEmail String // Email of the reporter
+  reportType  ReportType
+  targetType  String   // "USER", "LISTING", "PROJECT"
+  targetId    String
+  reason      String
+  description String?
+  status      ReportStatus @default(PENDING)
+  resolvedBy  String?  // Admin email who resolved it
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([reporterEmail])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum ReportType {
+  SPAM
+  INAPPROPRIATE
+  SCAM
+  HARASSMENT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
 }

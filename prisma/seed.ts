@@ -22,9 +22,11 @@ async function main() {
       locationCity: 'New Delhi, India',
       credits: 100,
       role: 'USER',
+      userType: 'SKILL_PROVIDER', // Skill Provider
+      isVerified: true,
     },
   })
-  console.log('✓ Created user: John Smith')
+  console.log('✓ Created user: John Smith (Skill Provider)')
 
   const user2 = await prisma.user.upsert({
     where: { email: 'sarah@example.com' },
@@ -39,9 +41,11 @@ async function main() {
       locationCity: 'New Delhi, India',
       credits: 150,
       role: 'USER',
+      userType: 'SKILL_PROVIDER', // Skill Provider
+      isVerified: true,
     },
   })
-  console.log('✓ Created user: Sarah Johnson')
+  console.log('✓ Created user: Sarah Johnson (Skill Provider)')
 
   const user3 = await prisma.user.upsert({
     where: { email: 'raj@example.com' },
@@ -56,9 +60,11 @@ async function main() {
       locationCity: 'South Delhi, India',
       credits: 200,
       role: 'USER',
+      userType: 'SKILL_PROVIDER', // Skill Provider
+      isVerified: true,
     },
   })
-  console.log('✓ Created user: Raj Patel')
+  console.log('✓ Created user: Raj Patel (Skill Provider)')
 
   const user4 = await prisma.user.upsert({
     where: { email: 'priya@example.com' },
@@ -73,9 +79,50 @@ async function main() {
       locationCity: 'North Delhi, India',
       credits: 120,
       role: 'USER',
+      userType: 'SKILL_PROVIDER', // Skill Provider
+      isVerified: true,
     },
   })
-  console.log('✓ Created user: Priya Sharma')
+  console.log('✓ Created user: Priya Sharma (Skill Provider)')
+
+  // Create Project Creators
+  const creator1 = await prisma.user.upsert({
+    where: { email: 'amit@example.com' },
+    update: {},
+    create: {
+      email: 'amit@example.com',
+      name: 'Amit Kumar',
+      passwordHash,
+      bio: 'Tech startup founder looking for talented developers and designers',
+      locationLat: 28.6150,
+      locationLng: 77.2050,
+      locationCity: 'Central Delhi, India',
+      credits: 500,
+      role: 'USER',
+      userType: 'PROJECT_CREATOR', // Project Creator
+      isVerified: true,
+    },
+  })
+  console.log('✓ Created user: Amit Kumar (Project Creator)')
+
+  const creator2 = await prisma.user.upsert({
+    where: { email: 'neha@example.com' },
+    update: {},
+    create: {
+      email: 'neha@example.com',
+      name: 'Neha Singh',
+      passwordHash,
+      bio: 'Event organizer seeking creative professionals for various projects',
+      locationLat: 28.6250,
+      locationLng: 77.2150,
+      locationCity: 'East Delhi, India',
+      credits: 300,
+      role: 'USER',
+      userType: 'PROJECT_CREATOR', // Project Creator
+      isVerified: true,
+    },
+  })
+  console.log('✓ Created user: Neha Singh (Project Creator)')
 
   // Create test listings
   const listing1 = await prisma.listing.create({
@@ -173,13 +220,13 @@ async function main() {
     data: {
       title: 'Local Skill Sharing Community',
       description: 'Join our community to share skills and learn together. Open to all skill levels and interests!',
-      ownerId: user3.id,
+      ownerId: creator1.id, // Project created by Amit (Project Creator)
       status: 'ACTIVE',
       members: {
         create: [
           { userId: user1.id, role: 'MEMBER' },
           { userId: user2.id, role: 'MEMBER' },
-          { userId: user3.id, role: 'MANAGER' },
+          { userId: creator1.id, role: 'MANAGER' },
         ],
       },
     },

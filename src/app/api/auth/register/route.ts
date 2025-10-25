@@ -7,6 +7,11 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  userType: z.enum(['SKILL_PROVIDER', 'PROJECT_CREATOR']).default('SKILL_PROVIDER'),
+  bio: z.string().optional(),
+  locationCity: z.string().optional(),
+  locationLat: z.number().optional(),
+  locationLng: z.number().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -39,11 +44,17 @@ export async function POST(req: NextRequest) {
         name: validatedData.name,
         email: validatedData.email,
         passwordHash: hashedPassword,
+        userType: validatedData.userType,
+        bio: validatedData.bio,
+        locationCity: validatedData.locationCity,
+        locationLat: validatedData.locationLat,
+        locationLng: validatedData.locationLng,
       },
       select: {
         id: true,
         name: true,
         email: true,
+        userType: true,
         createdAt: true,
       },
     })

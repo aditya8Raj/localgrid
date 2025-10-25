@@ -77,6 +77,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.email = user.email
         token.name = user.name
         token.picture = user.image
+        
+        // Fetch userType and role from database
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { userType: true, role: true, isVerified: true }
+        })
+        
+        if (dbUser) {
+          token.userType = dbUser.userType
+          token.role = dbUser.role
+          token.isVerified = dbUser.isVerified
+        }
       }
       return token
     },
@@ -86,6 +98,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.email = token.email as string
         session.user.name = token.name as string
         session.user.image = token.picture as string
+        session.user.userType = token.userType as 'SKILL_PROVIDER' | 'PROJECT_CREATOR'
+        session.user.role = token.role as 'USER' | 'MODERATOR' | 'ADMIN'
+        session.user.isVerified = token.isVerified as boolean
       }
       return session
     }

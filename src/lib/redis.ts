@@ -1,5 +1,5 @@
 import Redis from "ioredis";
-import { Queue, Worker, QueueEvents } from "bullmq";
+import { Queue, QueueEvents } from "bullmq";
 
 // Upstash Redis connection
 const connection = new Redis(process.env.UPSTASH_REDIS_REST_URL!, {
