@@ -15,16 +15,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
 
-  // Use JWT for middleware (lightweight, Edge compatible)
-  // But still use database for sessions (fresh data)
+  // Use JWT for both middleware and sessions
+  // This is more reliable than mixing strategies
   session: {
-    strategy: 'database',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
-  },
-
-  // Generate JWT tokens for middleware to read
-  jwt: {
+    strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
@@ -37,12 +31,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Initial sign in - add user data to token
       if (user) {
         token.id = user.id;
+        token.email = user.email;
         token.userType = user.userType;
         token.role = user.role;
         token.isVerified = user.isVerified;
       }
 
-      // When user updates their role, refetch from database
+      // When user updates their role OR token has no userType, refetch from database
       if (trigger === 'update' || !token.userType) {
         if (token.email) {
           const dbUser = await prisma.user.findUnique({
@@ -67,26 +62,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
 
-    async session({ session, user }) {
-      // Always fetch fresh user data from database for server components
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          image: true,
-          userType: true,
-          role: true,
-          isVerified: true,
-        },
-      });
-
-      if (dbUser && session.user) {
-        session.user.id = dbUser.id;
-        session.user.userType = dbUser.userType;
-        session.user.role = dbUser.role;
-        session.user.isVerified = dbUser.isVerified;
+    async session({ session, token }) {
+      // Map JWT token data to session
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.userType = token.userType as any;
+        session.user.role = token.role as any;
+        session.user.isVerified = token.isVerified as boolean;
       }
 
       return session;
