@@ -5,6 +5,7 @@ import { Calendar, Clock, DollarSign, MapPin, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ReviewForm } from '@/components/ReviewForm';
+import { BookingActions } from '@/components/BookingActions';
 
 async function getBooking(id: string, userId: string) {
   const booking = await prisma.booking.findUnique({
@@ -230,43 +231,12 @@ export default async function BookingDetailPage({
             </div>
 
             {/* Actions */}
-            <div className="mt-8 border-t pt-8 flex gap-3">
-              {booking.status === 'PENDING' && (
-                <>
-                  {!isCreator && (
-                    <>
-                      <button className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors">
-                        Confirm Booking
-                      </button>
-                      <button className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors">
-                        Decline
-                      </button>
-                    </>
-                  )}
-                  {isCreator && (
-                    <button className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors">
-                      Cancel Booking
-                    </button>
-                  )}
-                </>
-              )}
-              
-              {booking.status === 'COMPLETED' && isCreator && (
-                <Link
-                  href={`/listings/${booking.listingId}?review=true`}
-                  className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors text-center"
-                >
-                  Write Review
-                </Link>
-              )}
-
-              <Link
-                href={isCreator ? '/dashboard/creator' : '/dashboard/provider'}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-              >
-                Back to Dashboard
-              </Link>
-            </div>
+            <BookingActions 
+              bookingId={booking.id}
+              status={booking.status}
+              isCreator={isCreator}
+              listingId={booking.listingId}
+            />
           </div>
         </div>
 
