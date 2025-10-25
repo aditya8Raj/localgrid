@@ -1,0 +1,71 @@
+'use client';
+
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { Calendar, Edit } from 'lucide-react';
+
+interface ListingActionsProps {
+  listingId: string;
+  ownerId: string;
+}
+
+export function ListingActions({ listingId, ownerId }: ListingActionsProps) {
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  // If not logged in, show sign-in prompt
+  if (!session) {
+    return (
+      <div className="mt-8 border-t pt-8">
+        <button 
+          onClick={() => router.push('/auth/signin')}
+          className="w-full bg-indigo-600 text-white py-4 px-6 rounded-lg font-medium text-lg hover:bg-indigo-700 transition-colors"
+        >
+          Sign in to book this session
+        </button>
+      </div>
+    );
+  }
+
+  // If user is the owner, show edit button
+  if (session.user.id === ownerId) {
+    return (
+      <div className="mt-8 border-t pt-8">
+        <button 
+          onClick={() => router.push(`/listings/${listingId}/edit`)}
+          className="w-full bg-gray-600 text-white py-4 px-6 rounded-lg font-medium text-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <Edit className="w-5 h-5" />
+          Edit Listing
+        </button>
+      </div>
+    );
+  }
+
+  // If user is a PROJECT_CREATOR, show book button
+  if (session.user.userType === 'PROJECT_CREATOR') {
+    return (
+      <div className="mt-8 border-t pt-8">
+        <button 
+          onClick={() => router.push(`/bookings/new?listingId=${listingId}`)}
+          className="w-full bg-indigo-600 text-white py-4 px-6 rounded-lg font-medium text-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2"
+        >
+          <Calendar className="w-5 h-5" />
+          Book This Session
+        </button>
+        <p className="mt-3 text-sm text-gray-500 text-center">
+          You&apos;ll be able to choose a time slot in the next step
+        </p>
+      </div>
+    );
+  }
+
+  // If user is a SKILL_PROVIDER (not owner), show message
+  return (
+    <div className="mt-8 border-t pt-8">
+      <div className="bg-gray-100 text-gray-700 py-4 px-6 rounded-lg text-center">
+        Only project creators can book sessions. Switch to a creator account to book.
+      </div>
+    </div>
+  );
+}

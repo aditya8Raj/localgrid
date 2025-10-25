@@ -1,8 +1,10 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { Plus, Calendar, Star, TrendingUp, Users } from 'lucide-react';
+import { Plus, Calendar, Star, TrendingUp, Users, User } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { ProviderBookingCard } from '@/components/ProviderBookingCard';
 
 export default async function ProviderDashboard() {
   const session = await auth();
@@ -65,6 +67,31 @@ export default async function ProviderDashboard() {
   const avgRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
+
+  // Fetch available community projects
+  const availableProjects = await prisma.communityProject.findMany({
+    where: {
+      status: 'ACTIVE',
+    },
+    take: 4,
+    orderBy: {
+      createdAt: 'desc',
+    },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+      },
+      _count: {
+        select: {
+          members: true,
+        },
+      },
+    },
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -175,10 +202,10 @@ export default async function ProviderDashboard() {
                         </div>
                       </div>
                       <Link
-                        href={`/listings/${listing.id}`}
+                        href={`/listings/${listing.id}/edit`}
                         className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
                       >
-                        View
+                        Edit
                       </Link>
                     </div>
                   ))}
@@ -207,37 +234,7 @@ export default async function ProviderDashboard() {
               {bookings.length > 0 ? (
                 <div className="space-y-4">
                   {bookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="p-4 border rounded-lg"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-medium text-gray-900">
-                            {booking.listing.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {booking.user.name || booking.user.email}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-2">
-                            {new Date(booking.startAt).toLocaleDateString('en-IN')}
-                          </p>
-                        </div>
-                        <span
-                          className={`px-3 py-1 text-xs font-medium rounded-full ${
-                            booking.status === 'CONFIRMED'
-                              ? 'bg-green-100 text-green-700'
-                              : booking.status === 'PENDING'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : booking.status === 'COMPLETED'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          {booking.status}
-                        </span>
-                      </div>
-                    </div>
+                    <ProviderBookingCard key={booking.id} booking={booking} />
                   ))}
                 </div>
               ) : (
@@ -248,6 +245,65 @@ export default async function ProviderDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Available Community Projects */}
+        {availableProjects.length > 0 && (
+          <div className="mt-8 bg-white rounded-lg shadow">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-900">Community Projects</h2>
+              <p className="text-sm text-gray-600">Join projects to collaborate with creators</p>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {availableProjects.map((project) => (
+                  <Link
+                    key={project.id}
+                    href={`/projects/${project.id}`}
+                    className="block border rounded-lg p-4 hover:border-indigo-400 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      {project.owner.image ? (
+                        <Image
+                          src={project.owner.image}
+                          alt={project.owner.name || 'Owner'}
+                          width={40}
+                          height={40}
+                          className="rounded-full"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-gray-600" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          {project.owner.name}
+                        </p>
+                        <p className="text-xs text-gray-500">Project Owner</p>
+                      </div>
+                    </div>
+                    <h3 className="font-medium text-gray-900 mb-2">{project.title}</h3>
+                    <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                      {project.description}
+                    </p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1 text-gray-600">
+                        <Users className="w-3 h-3" />
+                        {project._count.members} members
+                      </span>
+                      <span className="text-green-600 font-medium">{project.status}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <div className="mt-4 text-center">
+                <p className="text-sm text-gray-500">
+                  Join projects to build your portfolio and earn community recognition
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
