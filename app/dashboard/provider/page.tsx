@@ -147,10 +147,6 @@ export default async function ProviderDashboard() {
             <p className="text-xs text-gray-500 mt-2">{totalReviews} reviews</p>
           </div>
 
-          <div className="col-span-2">
-            <CreditWallet balance={credits} />
-          </div>
-
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -161,6 +157,10 @@ export default async function ProviderDashboard() {
                 <Calendar className="w-6 h-6 text-blue-600" />
               </div>
             </div>
+          </div>
+
+          <div className="col-span-1 md:col-span-2 lg:col-span-1">
+            <CreditWallet balance={credits} />
           </div>
         </div>
 
