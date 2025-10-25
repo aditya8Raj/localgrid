@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import dynamic from 'next/dynamic';
 import { Loader2, X } from 'lucide-react';
 
@@ -18,7 +18,7 @@ const LocationPicker = dynamic(() => import('@/components/LocationPicker'), {
 function EditListingForm() {
   const router = useRouter();
   const params = useParams();
-  const { data: session, status } = useSession();
+  const { user, firebaseUser, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ function EditListingForm() {
         const data = await response.json();
         
         // Check if user is the owner
-        if (data.listing.ownerId !== session?.user?.id) {
+        if (data.listing.ownerId !== user?.id) {
           router.push('/dashboard');
           return;
         }
@@ -68,17 +68,17 @@ function EditListingForm() {
       }
     };
 
-    if (status === 'authenticated' && params.id) {
+    if (user && params.id) {
       fetchListing();
     }
-  }, [status, params.id, session?.user?.id, router]);
+  }, [params.id, user, router]);
 
   // Redirect non-providers
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.userType !== 'SKILL_PROVIDER') {
+    if (!loading && user && user.userType !== 'SKILL_PROVIDER') {
       router.push('/dashboard');
     }
-  }, [status, session, router]);
+  }, [loading, user, router]);
 
   const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagInput.trim()) {
@@ -195,7 +195,7 @@ function EditListingForm() {
     }
   };
 
-  if (status === 'loading' || isFetching) {
+  if (loading || isFetching) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -203,7 +203,7 @@ function EditListingForm() {
     );
   }
 
-  if (status === 'unauthenticated') {
+  if (!firebaseUser) {
     router.push('/auth/signin');
     return null;
   }

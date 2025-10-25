@@ -2,13 +2,13 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import { Loader2 } from 'lucide-react';
 
 function EditProjectForm() {
   const router = useRouter();
   const params = useParams();
-  const { data: session, status } = useSession();
+  const { user, firebaseUser, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ function EditProjectForm() {
         const data = await response.json();
         
         // Check if user is the owner
-        if (data.project.ownerId !== session?.user?.id) {
+        if (data.project.ownerId !== user?.id) {
           router.push('/dashboard');
           return;
         }
@@ -46,10 +46,10 @@ function EditProjectForm() {
       }
     };
 
-    if (status === 'authenticated' && params.id) {
+    if (user && params.id) {
       fetchProject();
     }
-  }, [status, params.id, session?.user?.id, router]);
+  }, [params.id, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +115,7 @@ function EditProjectForm() {
     }
   };
 
-  if (status === 'loading' || isFetching) {
+  if (loading || isFetching) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -123,12 +123,12 @@ function EditProjectForm() {
     );
   }
 
-  if (status === 'unauthenticated') {
+  if (!firebaseUser) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (session?.user?.userType !== 'PROJECT_CREATOR') {
+  if (user?.userType !== 'PROJECT_CREATOR') {
     router.push('/dashboard');
     return null;
   }

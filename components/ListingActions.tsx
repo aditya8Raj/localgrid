@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import { useRouter } from 'next/navigation';
 import { Calendar, Edit } from 'lucide-react';
 
@@ -10,11 +10,11 @@ interface ListingActionsProps {
 }
 
 export function ListingActions({ listingId, ownerId }: ListingActionsProps) {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
 
   // If not logged in, show sign-in prompt
-  if (!session) {
+  if (!user) {
     return (
       <div className="mt-8 border-t pt-8" role="region" aria-label="Listing actions">
         <button 
@@ -29,7 +29,7 @@ export function ListingActions({ listingId, ownerId }: ListingActionsProps) {
   }
 
   // If user is the owner, show edit button
-  if (session.user.id === ownerId) {
+  if (user.id === ownerId) {
     return (
       <div className="mt-8 border-t pt-8" role="region" aria-label="Listing actions">
         <button 
@@ -45,7 +45,7 @@ export function ListingActions({ listingId, ownerId }: ListingActionsProps) {
   }
 
   // If user is a PROJECT_CREATOR, show book button
-  if (session.user.userType === 'PROJECT_CREATOR') {
+  if (user.userType === 'PROJECT_CREATOR') {
     return (
       <div className="mt-8 border-t pt-8" role="region" aria-label="Listing actions">
         <button 

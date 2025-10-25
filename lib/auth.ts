@@ -28,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
 
   callbacks: {
-    async jwt({ token, user, trigger, account }) {
+    async jwt({ token, user, trigger }) {
       // Initial sign in - add user data to token
       if (user) {
         token.id = user.id;
@@ -65,7 +65,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Map JWT token data to session
       if (token && session.user) {
         session.user.id = token.id as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         session.user.userType = token.userType as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         session.user.role = token.role as any;
         session.user.isVerified = token.isVerified as boolean;
       }

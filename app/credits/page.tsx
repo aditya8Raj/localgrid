@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import { useRouter } from 'next/navigation';
 import { Wallet, CreditCard, TrendingUp, Loader2, CheckCircle } from 'lucide-react';
 import Script from 'next/script';
@@ -28,29 +28,37 @@ interface Transaction {
 }
 
 export default function CreditsPage() {
-  const { data: session, status } = useSession();
+  const { user, firebaseUser, loading: authLoading } = useAuth();
   const router = useRouter();
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (!authLoading && !firebaseUser) {
       router.push('/auth/signin');
     }
-  }, [status, router]);
+  }, [authLoading, firebaseUser, router]);
 
   useEffect(() => {
-    if (session) {
+    if (firebaseUser) {
       fetchTransactions();
     }
-  }, [session]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser]);
 
   const fetchTransactions = async () => {
+    if (!firebaseUser) return;
+    
     try {
-      const response = await fetch('/api/credits/transactions');
+      const token = await firebaseUser.getIdToken();
+      const response = await fetch('/api/credits/transactions', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
 
       if (response.ok) {
@@ -60,7 +68,7 @@ export default function CreditsPage() {
     } catch (err) {
       console.error('Fetch transactions error:', err);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -156,12 +164,16 @@ export default function CreditsPage() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  if (authLoading || dataLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
+  }
+
+  if (!user) {
+    return null; // Will redirect in useEffect
   }
 
   return (

@@ -2,12 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import { Loader2, X } from 'lucide-react';
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { user, firebaseUser, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -80,7 +80,7 @@ export default function NewProjectPage() {
     }
   };
 
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -88,12 +88,12 @@ export default function NewProjectPage() {
     );
   }
 
-  if (status === 'unauthenticated') {
+  if (!firebaseUser) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (session?.user?.userType !== 'PROJECT_CREATOR') {
+  if (user?.userType !== 'PROJECT_CREATOR') {
     router.push('/dashboard');
     return null;
   }

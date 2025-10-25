@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import { useRouter } from 'next/navigation';
 import { Users, Edit, Loader2 } from 'lucide-react';
 import { useState } from 'react';
@@ -12,7 +12,7 @@ interface ProjectActionsProps {
 }
 
 export function ProjectActions({ projectId, ownerId, isMember = false }: ProjectActionsProps) {
-  const { data: session } = useSession();
+  const { user } = useAuth();
   const router = useRouter();
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +45,7 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
   };
 
   // If not logged in, show sign-in prompt
-  if (!session) {
+  if (!user) {
     return (
       <div className="mt-8 border-t pt-8" role="region" aria-label="Project actions">
         <button 
@@ -60,7 +60,7 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
   }
 
   // If user is the owner, show edit button
-  if (session.user.id === ownerId) {
+  if (user.id === ownerId) {
     return (
       <div className="mt-8 border-t pt-8" role="region" aria-label="Project actions">
         <div className="flex gap-4">
@@ -78,7 +78,7 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
   }
 
   // If user is a SKILL_PROVIDER, show join button or member badge
-  if (session.user.userType === 'SKILL_PROVIDER') {
+  if (user.userType === 'SKILL_PROVIDER') {
     // If already a member, show badge
     if (isMember) {
       return (

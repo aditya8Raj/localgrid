@@ -4,6 +4,14 @@ import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Firebase Admin is initialized
+    if (!adminAuth) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not initialized. Please check server configuration.' },
+        { status: 500 }
+      );
+    }
+
     const { token } = await request.json();
 
     if (!token) {

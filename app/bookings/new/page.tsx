@@ -2,14 +2,14 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import { Loader2, Calendar, Clock, DollarSign, MapPin, Wallet, CreditCard } from 'lucide-react';
 import Image from 'next/image';
 
 function BookingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { user, firebaseUser, loading } = useAuth();
   const listingId = searchParams.get('listingId');
 
   const [isLoading, setIsLoading] = useState(false);
@@ -126,7 +126,7 @@ function BookingForm() {
     }
   };
 
-  if (status === 'loading' || isFetching) {
+  if (loading || isFetching) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -134,12 +134,12 @@ function BookingForm() {
     );
   }
 
-  if (status === 'unauthenticated') {
+  if (!firebaseUser) {
     router.push('/auth/signin');
     return null;
   }
 
-  if (session?.user?.userType !== 'PROJECT_CREATOR') {
+  if (user?.userType !== 'PROJECT_CREATOR') {
     router.push('/dashboard');
     return null;
   }

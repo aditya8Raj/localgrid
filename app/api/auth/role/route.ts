@@ -6,6 +6,14 @@ import { sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Firebase Admin is initialized
+    if (!adminAuth) {
+      return NextResponse.json(
+        { error: 'Firebase Admin not initialized. Please check server configuration.' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { userType } = z.object({
       userType: z.enum(['SKILL_PROVIDER', 'PROJECT_CREATOR']),
