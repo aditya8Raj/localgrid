@@ -60,11 +60,11 @@ export default function DashboardLayout({
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "Explore Skills", href: "/dashboard/explore", icon: Search },
-    { name: "My Bookings", href: "/dashboard/bookings", icon: Calendar },
-    { name: "My Skills", href: "/dashboard/skills", icon: Briefcase },
-    { name: "Projects", href: "/dashboard/projects", icon: Users },
-    { name: "Achievements", href: "/dashboard/achievements", icon: Award },
+    { name: "Explore Skills", href: "/listings", icon: Search },
+    { name: "My Bookings", href: "/dashboard?tab=bookings", icon: Calendar },
+    { name: "My Listings", href: "/dashboard?tab=listings", icon: Briefcase },
+    { name: "Projects", href: "/projects", icon: Users },
+    { name: "Credits", href: "/credits", icon: Award },
   ]
 
   return (
@@ -106,7 +106,7 @@ export default function DashboardLayout({
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/profile">
+                  <Link href={`/profile/${session.user?.id || ''}`}>
                     <Settings className="mr-2 h-4 w-4" />
                     Profile Settings
                   </Link>
