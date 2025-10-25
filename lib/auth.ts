@@ -24,6 +24,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
 
+  experimental: {
+    enableWebAuthn: false,
+  },
+
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -63,51 +67,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
 
   callbacks: {
-    async authorized({ auth, request }) {
-      const { pathname } = request.nextUrl;
-      const session = auth;
-
-      // Public routes
-      const publicRoutes = ['/', '/auth/signin', '/auth/role-selection', '/auth/error'];
-      const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith('/api/auth'));
-
-      if (isPublicRoute) return true;
-
-      // Require authentication
-      if (!session?.user) {
-        return false; // NextAuth will redirect to signin
-      }
-
-      // Require role selection
-      if (!session.user.userType && !pathname.startsWith('/auth/role-selection')) {
-        return Response.redirect(new URL('/auth/role-selection', request.url));
-      }
-
-      // Provider-only routes
-      if (pathname.startsWith('/dashboard/provider') || pathname.startsWith('/listings/new') || pathname.includes('/listings/') && pathname.includes('/edit')) {
-        if (session.user.userType !== 'SKILL_PROVIDER' && session.user.role !== 'ADMIN') {
-          return Response.redirect(new URL('/dashboard/creator', request.url));
-        }
-      }
-
-      // Creator-only routes
-      if (pathname.startsWith('/dashboard/creator') || pathname.startsWith('/projects/new') || pathname.includes('/projects/') && pathname.includes('/edit')) {
-        if (session.user.userType !== 'PROJECT_CREATOR' && session.user.role !== 'ADMIN') {
-          return Response.redirect(new URL('/dashboard/provider', request.url));
-        }
-      }
-
-      // Redirect /dashboard to role-specific dashboard
-      if (pathname === '/dashboard') {
-        const dashboardUrl = session.user.userType === 'SKILL_PROVIDER' 
-          ? '/dashboard/provider' 
-          : '/dashboard/creator';
-        return Response.redirect(new URL(dashboardUrl, request.url));
-      }
-
-      return true;
-    },
-
     async signIn({ user, account }) {
       // For OAuth providers, check if user has selected role
       if (account?.provider === 'google') {
