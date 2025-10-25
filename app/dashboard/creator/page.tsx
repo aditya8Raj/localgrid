@@ -160,9 +160,7 @@ export default async function CreatorDashboard() {
             </div>
           </div>
 
-          <div className="col-span-1 md:col-span-2 lg:col-span-1">
-            <CreditWallet balance={credits} />
-          </div>
+          <CreditWallet balance={credits} />
         </div>
 
         {/* Recommended Providers */}

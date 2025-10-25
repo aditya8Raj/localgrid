@@ -159,9 +159,7 @@ export default async function ProviderDashboard() {
             </div>
           </div>
 
-          <div className="col-span-1 md:col-span-2 lg:col-span-1">
-            <CreditWallet balance={credits} />
-          </div>
+          <CreditWallet balance={credits} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
