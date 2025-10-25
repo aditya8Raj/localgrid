@@ -1,111 +1,531 @@
 # LocalGrid - AI Agent Instructions
 
-Use the entire block below as the single instruction to the Copilot Agent. It tells the agent exactly what to create, how to structure the repo, and how to validate each feature.
+## Project Overview
+
+**LocalGrid** (LocalSkill internally) is a production-ready Next.js full-stack application for hyperlocal skill exchange in India. The platform supports **two distinct user roles** with separate workflows and dashboards.
+
+## Core Architecture
+
+### User Role System (PRIMARY FEATURE)
+
+The platform implements a **dual-role system** where users choose their role during signup:
+
+#### 1. **Skill Providers** 🎨
+- **Purpose**: Individuals who offer services and skills
+- **Capabilities**:
+  - Create and manage skill listings
+  - Set pricing and availability
+  - Accept bookings from Project Creators
+  - Earn credits through services
+  - Build reputation with reviews
+  - Join community projects as members
+- **Dashboard**: `/dashboard/provider`
+- **Permissions**: Can create listings, cannot create projects
+
+#### 2. **Project Creators** 💼
+- **Purpose**: Individuals who need services and post projects
+- **Capabilities**:
+  - Browse and search skill providers
+  - Book sessions with providers
+  - Create community projects
+  - Manage team members
+  - Review and rate providers
+  - Track spending and budgets
+- **Dashboard**: `/dashboard/creator`
+- **Permissions**: Can create projects, cannot create listings
+
+### Authentication Flow
+
+1. User visits `/auth/signup`
+2. **Inline role selection** via radio buttons: "Skill Provider" or "Project Creator"
+3. User fills registration form (same form for both roles)
+4. Backend sets `userType` in database during registration
+5. Upon login, middleware redirects to role-specific dashboard
+6. Session includes `userType`, `role`, and `isVerified` fields
+
+**Supported Auth Methods**:
+- Email/Password (bcrypt, 12 rounds)
+- Google OAuth
+- GitHub OAuth
+
+## Technology Stack
+
+- **Framework**: Next.js 15 (App Router), React 18, TypeScript 5
+- **UI**: Shadcn UI components + Tailwind CSS 4
+- **Authentication**: NextAuth v5 (Auth.js) with Credentials, Google, GitHub
+- **Database**: Neon PostgreSQL (serverless), Prisma ORM 6
+- **Maps**: OpenStreetMap + Leaflet.js (free, no API key)
+- **Payments**: Razorpay (India-specific)
+- **Background Jobs**: BullMQ + ioredis + Upstash Redis
+- **Email**: Nodemailer with Gmail SMTP
+- **Deployment**: Vercel (with daily cron jobs for Hobby plan)
+- **File Uploads**: Cloudinary (optional)
+
+## Database Schema (Prisma)
+
+### Core Models
+
+**User Model** - Dual-role support
+```prisma
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?
+  
+  // Role System (PRIMARY)
+  userType      UserType  @default(SKILL_PROVIDER)
+  role          UserRole  @default(USER)
+  isVerified    Boolean   @default(false)
+  verifiedAt    DateTime?
+  
+  // Location
+  locationLat   Float?
+  locationLng   Float?
+  locationCity  String?
+  
+  // Profile
+  bio           String?
+  image         String?
+  credits       Int       @default(0)
+  
+  // Relations
+  listings      Listing[]
+  bookings      Booking[]
+  reviewsGiven  Review[]  @relation("reviewsGiven")
+  reviewsReceived Review[] @relation("reviewsReceived")
+  projectsOwned CommunityProject[] @relation("owner")
+  // ... other relations
+  
+  @@index([userType])
+}
+
+enum UserType {
+  SKILL_PROVIDER
+  PROJECT_CREATOR
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+```
+
+**Listing Model** - Skills offered by providers
+```prisma
+model Listing {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  skillTags   String[]
+  
+  // Geo-location for radius search
+  lat         Float
+  lng         Float
+  
+  // Pricing
+  priceCents  Int?
+  durationMins Int
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  owner       User     @relation(fields: [ownerId], references: [id])
+  ownerId     String
+  bookings    Booking[]
+  reviews     Review[]
+}
+```
+
+**Booking Model** - Session scheduling
+```prisma
+model Booking {
+  id           String        @id @default(cuid())
+  startAt      DateTime
+  endAt        DateTime
+  status       BookingStatus @default(PENDING)
+  priceCents   Int?
+  creditsUsed  Int?
+  reminderSent Boolean       @default(false)
+  
+  user         User          @relation(fields: [userId], references: [id])
+  userId       String
+  listing      Listing       @relation(fields: [listingId], references: [id])
+  listingId    String
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  DECLINED
+}
+```
+
+**CommunityProject Model** - Collaborative initiatives
+```prisma
+model CommunityProject {
+  id          String        @id @default(cuid())
+  title       String
+  description String
+  status      ProjectStatus @default(ACTIVE)
+  
+  owner       User          @relation("owner", fields: [ownerId], references: [id])
+  ownerId     String
+  members     ProjectMember[]
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ON_HOLD
+}
+```
+
+**Other Models**: Review, CreditTransaction, Endorsement, VerificationBadge, ProjectMember, AdminLog, Report
+
+## Key Features Implementation
+
+### 1. Geo-Location Search (Haversine Distance)
+
+**File**: `src/lib/geo.ts`
+
+```typescript
+// Haversine formula for distance calculation
+export function haversineDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371; // Earth radius in km
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// PostgreSQL query with subquery for distance filtering
+export async function searchListingsNearby(
+  lat: number,
+  lng: number,
+  radiusKm: number
+) {
+  return await prisma.$queryRaw`
+    SELECT * FROM (
+      SELECT *, 
+        (6371 * 2 * asin(sqrt(
+          pow(sin(radians(${lat} - lat) / 2), 2) +
+          cos(radians(${lat})) * cos(radians(lat)) *
+          pow(sin(radians(${lng} - lng) / 2), 2)
+        ))) AS distance_km
+      FROM "Listing"
+      WHERE "isActive" = true
+    ) AS listings_with_distance
+    WHERE distance_km <= ${radiusKm}
+    ORDER BY distance_km ASC
+  `;
+}
+```
+
+### 2. Role-Based Permissions
+
+**File**: `src/lib/permissions.ts`
+
+```typescript
+export function canCreateListing(session: Session | null): boolean {
+  return session?.user?.userType === 'SKILL_PROVIDER';
+}
+
+export function canCreateProject(session: Session | null): boolean {
+  return session?.user?.userType === 'PROJECT_CREATOR';
+}
+
+export function getDefaultDashboard(userType: UserType): string {
+  return userType === 'SKILL_PROVIDER' 
+    ? '/dashboard/provider' 
+    : '/dashboard/creator';
+}
+```
+
+### 3. Route Protection Middleware
+
+**File**: `src/middleware.ts`
+
+```typescript
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request });
+  const { pathname } = request.nextUrl;
+  
+  // Provider-only routes
+  if (pathname.startsWith('/dashboard/provider')) {
+    if (token?.userType !== 'SKILL_PROVIDER' && token?.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+  
+  // Creator-only routes
+  if (pathname.startsWith('/dashboard/creator')) {
+    if (token?.userType !== 'PROJECT_CREATOR' && token?.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+  
+  return NextResponse.next();
+}
+```
+
+### 4. Background Jobs (BullMQ)
+
+**File**: `src/lib/redis.ts`
+
+```typescript
+import { Queue } from 'bullmq';
+import Redis from 'ioredis';
+
+const connection = new Redis(process.env.UPSTASH_REDIS_REST_URL!);
+
+export const reminderQueue = new Queue('reminders', { connection });
+
+// Schedule reminder
+export async function scheduleReminder(bookingId: string, sendAt: Date) {
+  await reminderQueue.add(
+    'send-reminder',
+    { bookingId },
+    { delay: sendAt.getTime() - Date.now() }
+  );
+}
+```
+
+**Worker**: `src/services/reminder-worker.ts`
+
+```typescript
+import { Worker } from 'bullmq';
+import { sendBookingReminder } from './email-service';
+
+const worker = new Worker('reminders', async (job) => {
+  const { bookingId } = job.data;
+  await sendBookingReminder(bookingId);
+}, { connection });
+```
+
+### 5. Email Notifications
+
+**File**: `src/services/email-service.ts`
+
+```typescript
+import nodemailer from 'nodemailer';
+
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_SMTP_HOST,
+  port: parseInt(process.env.EMAIL_SMTP_PORT!),
+  auth: {
+    user: process.env.EMAIL_SMTP_USER,
+    pass: process.env.EMAIL_SMTP_PASS,
+  },
+});
+
+export async function sendBookingReminder(bookingId: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { user: true, listing: { include: { owner: true } } },
+  });
+  
+  await transporter.sendMail({
+    to: booking.user.email,
+    subject: `Reminder: Session in 24 hours`,
+    html: renderReminderEmail(booking),
+  });
+}
+```
+```
+
+## Environment Variables
+
+Create `.env` file with:
+
+```env
+# Database - Neon PostgreSQL
+DATABASE_URL="postgresql://..."
+
+# NextAuth
+NEXTAUTH_SECRET="openssl-rand-base64-32"
+NEXTAUTH_URL="http://localhost:3000"
+
+# OAuth (Optional)
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+GITHUB_ID=""
+GITHUB_SECRET=""
+
+# Email - Gmail SMTP
+EMAIL_SMTP_HOST="smtp.gmail.com"
+EMAIL_SMTP_PORT="587"
+EMAIL_SMTP_USER="your-gmail@gmail.com"
+EMAIL_SMTP_PASS="your-app-password"
+
+# Redis - Upstash
+UPSTASH_REDIS_REST_URL="https://..."
+UPSTASH_REDIS_REST_TOKEN="..."
+
+# Optional
+CLOUDINARY_CLOUD_NAME=""
+CLOUDINARY_API_KEY=""
+CLOUDINARY_API_SECRET=""
+RAZORPAY_KEY_ID=""
+RAZORPAY_KEY_SECRET=""
+NEXT_PUBLIC_RAZORPAY_KEY_ID=""
+```
+
+## India-Specific Integrations (IMPORTANT)
+
+**This project is designed specifically for users in India. Use these integrations:**
+
+### Payment Gateway
+* **USE Razorpay** (NOT Stripe) - India's leading payment gateway
+* Get API keys from: https://dashboard.razorpay.com/
+* Environment variables:
+  - `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (server-side)
+  - `NEXT_PUBLIC_RAZORPAY_KEY_ID` (client-side)
+  - `RAZORPAY_WEBHOOK_SECRET` (for webhook verification)
+* Features: UPI, Cards, NetBanking, Wallets (Paytm, PhonePe, etc.)
+* Documentation: https://razorpay.com/docs/
+
+### Maps & Geolocation
+* **USE OpenStreetMap with Leaflet.js** (NOT Google Maps) - Free & Open Source
+* No API keys required
+* Libraries to install:
+  - `leaflet` - Map rendering library
+  - `react-leaflet` - React components for Leaflet
+  - `@types/leaflet` - TypeScript definitions
+* Tile server URL: `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`
+* Alternative free tile servers: https://wiki.openstreetmap.org/wiki/Tile_servers
+* For geocoding (address → lat/lng): Use Nominatim API (free, no key required)
+  - API: `https://nominatim.openstreetmap.org/search?q={address}&format=json`
+  - Add User-Agent header with your app name
+* For reverse geocoding (lat/lng → address): Use Nominatim reverse API
+  - API: `https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json`
+
+### Implementation Notes
+* Razorpay supports INR currency by default
+* OpenStreetMap data is crowd-sourced and updated regularly
+* Both integrations are production-ready and widely used in India
+* Cost: Razorpay charges ~2% per transaction; OpenStreetMap is completely free
+
+## Key Development Principles
+
+1. **Real Data Only**: No seed data in production. All users register through signup flow.
+2. **Role Selection**: Users MUST choose their role (Provider/Creator) during signup with inline radio buttons.
+3. **Separate Dashboards**: Each role gets a completely different dashboard experience.
+4. **Permission Enforcement**: Middleware and API routes enforce role-based permissions strictly.
+5. **India-First**: Use Razorpay for payments, OpenStreetMap for maps, India timezone for emails.
+6. **Production Ready**: All features must work in real-world scenarios with actual users.
+7. **Type Safety**: Full TypeScript coverage including session types.
+8. **Security**: bcrypt password hashing, JWT sessions, CSRF protection, input validation.
+9. **Performance**: Optimized queries, proper indexing, connection pooling.
+10. **Accessibility**: ARIA labels, keyboard navigation, screen reader support.
+
+## Critical Implementation Requirements
+
+### Signup Page (`/auth/signup`)
+- **MUST** show inline role selection with radio buttons
+- Options: "I am a Skill Provider" and "I am a Project Creator"
+- Descriptions explaining each role
+- Same form for both roles, but radio selection determines `userType`
+- Submit creates user with selected `userType` in database
+
+### Dashboard Routing
+- `/dashboard` → Redirects based on session.user.userType
+- `/dashboard/provider` → Only SKILL_PROVIDER can access
+- `/dashboard/creator` → Only PROJECT_CREATOR can access
+- Middleware enforces these rules
+
+### API Protection
+- POST `/api/listings` → Requires SKILL_PROVIDER userType
+- POST `/api/projects` → Requires PROJECT_CREATOR userType
+- All updates check ownership OR admin role
+
+## Testing Requirements
+
+### Manual Testing Checklist
+- [ ] Sign up as Skill Provider via signup page
+- [ ] Sign up as Project Creator via signup page
+- [ ] Login and verify correct dashboard redirect
+- [ ] Provider can create listings
+- [ ] Creator cannot create listings (redirected/blocked)
+- [ ] Creator can create projects
+- [ ] Provider cannot create projects (redirected/blocked)
+- [ ] Both roles can browse, book, review
+- [ ] Email notifications work
+- [ ] Geo-search returns nearby listings
+- [ ] Credits system functions correctly
+
+## Production Deployment (Vercel)
+
+1. **Database Setup**: Neon PostgreSQL with connection pooling
+2. **Redis Setup**: Upstash Redis for background jobs
+3. **Environment Variables**: Add all `.env` variables to Vercel
+4. **Cron Jobs**: Daily cleanup cron configured in `vercel.json`
+5. **Build Command**: `npm run build` (auto-detected)
+6. **Start Command**: `npm start` (auto-detected)
+7. **Node Version**: 18.x
+
+## Common Issues & Solutions
+
+### Issue: "Cannot read properties of undefined (reading 'userType')"
+**Solution**: Ensure NextAuth callbacks fetch userType from database and add to JWT token
+
+### Issue: Users can access wrong dashboard
+**Solution**: Check middleware.ts is properly protecting routes based on userType
+
+### Issue: Role selection not working on signup
+**Solution**: Verify RadioGroup component is installed (`@radix-ui/react-radio-group`)
+
+### Issue: Email notifications not sending
+**Solution**: Check Gmail app password is set correctly, not regular password
+
+### Issue: Geo-search returns no results
+**Solution**: Verify listings have lat/lng coordinates and use subquery approach
+
+## File Structure Summary
 
 ```
-You are Copilot Agent. Build a production-ready, fully-tested, production-deployable Next.js full-stack application called **LocalSkill** (internal name). The stack, constraints, and product goals are:
-
-- Next.js (App Router), TypeScript
-- UI: shadcn/ui components + TailwindCSS; add complementary shadcn-based components as needed
-- Auth: NextAuth with Google, GitHub, Email/Password (Credentials provider)
-- DB: Neon Postgres (Prisma ORM). Use lat/lng on listings and users for geo matching (Haversine).
-- Deploy: Vercel
-- Background jobs / reminders: Upstash Redis + BullMQ or Vercel Cron + serverless endpoint (choose simplest stable option and document)
-- Email: SendGrid (or SMTP fallback)
-- Tests: Jest + React Testing Library for unit; Playwright for e2e
-- Linting/formatting: ESLint, Prettier, commitlint, Husky
-- CI: GitHub Actions for PR checks (lint/test/build) — Vercel handles main deploys.
-- Accessibility & i18n: follow a11y best practices and include next-intl for localization
-
-Work in small commits and open meaningful PRs (one feature per branch). Add thorough README and developer docs.
-
-## Definition of Done (high-level)
-1. App runs locally (`pnpm dev`) and supports sign-up/sign-in via Google, GitHub, email/password.
-2. Users can create profiles, add skills/listings, search by radius, book sessions with calendar availability, confirm, and rate each other.
-3. Booking calendar with conflict detection, automated reminders via scheduled job + email, and an appointment page.
-4. Reputation: ratings/reviews and endorsements UI + DB logic.
-5. Community projects: create/join/list projects, manage members and statuses.
-6. Token/credit system: earn/spend/transfer credits; admin can top-up or adjust.
-7. Responsive, accessible UI using shadcn components + dark mode.
-8. Unit & e2e tests for core flows; CI passes for PRs.
-9. Deployment-ready config on Vercel with environment variables documented.
-
-## Repo & Branching
-- repo: `localskill` (root)
-- branches: `main` (protected, auto-deploy), `develop`, feature branches `feat/<short-desc>`
-- PR policy: All PRs from `feat/*` → `develop` or `main` require:
-  - passing GH Actions (lint, tests)
-  - 1 approving review
-  - meaningful PR description with screenshots (if UI)
-
-## Initial repo scaffold (create these files and folders)
+src/
+├── app/
+│   ├── api/          # All API routes
+│   ├── auth/         # Auth pages (signin, signup)
+│   ├── dashboard/    # Role-based dashboards
+│   ├── listings/     # Skill listings
+│   ├── projects/     # Community projects
+│   ├── bookings/     # Booking management
+│   └── credits/      # Credit system
+├── components/       # UI components
+├── lib/              # Utilities and configs
+│   ├── auth.ts       # NextAuth config
+│   ├── prisma.ts     # DB client
+│   ├── permissions.ts # Role checks
+│   ├── geo.ts        # Haversine distance
+│   ├── redis.ts      # BullMQ queues
+│   └── email.ts      # Email utilities
+├── services/         # Background workers
+└── middleware.ts     # Route protection
 ```
 
-/ (root)
-├─ .github/workflows/ci.yml
-├─ .husky/
-├─ prisma/
-│  └─ schema.prisma
-├─ src/
-│  ├─ app/
-│  │  ├─ layout.tsx
-│  │  └─ globals.css
-│  ├─ components/         # shadcn + app-specific components
-│  ├─ lib/
-│  │  ├─ prisma.ts
-│  │  ├─ auth.ts
-│  │  └─ geo.ts
-│  ├─ pages/              # API routes for server actions (if needed)
-│  ├─ services/           # email, payments, jobs, schedulers
-│  ├─ tests/
-│  └─ prisma/seed.ts
-├─ public/
-├─ scripts/
-│  └─ reset-db.sh
-├─ .env.example
-├─ package.json
-├─ tsconfig.json
-├─ tailwind.config.js
-├─ postcss.config.js
-└─ README.md
+## Final Notes
 
-```
+- **NO SEED DATA**: Users register themselves
+- **INLINE ROLE SELECTION**: Radio buttons on signup page
+- **STRICT PERMISSIONS**: Middleware + API checks
+- **INDIA-SPECIFIC**: Razorpay + OpenStreetMap
+- **PRODUCTION READY**: Fully functional with real users
 
-## package.json (core deps)
-Install (pnpm recommended):
-- next, react, react-dom, typescript
-- @prisma/client, prisma
-- next-auth
-- @shadcn/ui packages (and shadcn shadcn/ui setup)
-- tailwindcss, postcss, autoprefixer
-- bcrypt
-- axios
-- date-fns
-- bullmq (or suitable job lib), ioredis
-- upstash for Redis if chosen
-- @sendgrid/mail
-- jest, @testing-library/react, @testing-library/jest-dom
-- playwright
-
-## Environment variables (.env.example)
-```
-
-DATABASE_URL="postgresql://<user>:<pass>@<host>:<port>/<db>?schema=public"
-NEXTAUTH_URL="[https://your-vercel-app.vercel.app](https://your-vercel-app.vercel.app)" # or [http://localhost:3000](http://localhost:3000) for dev
-NEXTAUTH_SECRET="long_random_secret"
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GITHUB_ID=
-GITHUB_SECRET=
-SENDGRID_API_KEY=
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-JWT_SECRET=
-EMAIL_SMTP_HOST=
-EMAIL_SMTP_PORT=
-EMAIL_SMTP_USER=
-EMAIL_SMTP_PASS=
-VERCEL_TOKEN=
+This project is designed for real-world deployment with actual users in India. Every feature should work seamlessly in production without any seed data or development shortcuts.
 
 ````
 
