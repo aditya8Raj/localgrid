@@ -1,51 +1,42 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { adminAuth } from '@/lib/firebase-admin';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { sendWelcomeEmail } from '@/lib/email';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userType, userId } = z.object({
+    const { userType } = z.object({
       userType: z.enum(['SKILL_PROVIDER', 'PROJECT_CREATOR']),
-      userId: z.string().optional(),
     }).parse(body);
 
-    // Try to get session first
-    const session = await auth();
+    // Get Firebase token from Authorization header
+    const authHeader = request.headers.get('Authorization');
     
-    let userEmail: string | null = null;
-    let userIdToUpdate: string | null = null;
-
-    if (session?.user?.email) {
-      userEmail = session.user.email;
-    } else if (userId) {
-      // If no session but userId provided, fetch user
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { email: true },
-      });
-      
-      if (user) {
-        userEmail = user.email;
-        userIdToUpdate = userId;
-      }
-    }
-
-    if (!userEmail) {
-      console.error('No session or userId found');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Unauthorized - Please sign in again' },
         { status: 401 }
       );
     }
 
-    console.log('Attempting to update user:', userEmail, 'with userType:', userType);
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await adminAuth.verifyIdToken(token);
+    const { email } = decodedToken;
+
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email not found' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Attempting to update user:', email, 'with userType:', userType);
 
     // Update user's userType in database
     const updatedUser = await prisma.user.update({
-      where: userIdToUpdate ? { id: userIdToUpdate } : { email: userEmail },
+      where: { email },
       data: { userType },
     });
 
@@ -60,10 +51,9 @@ export async function POST(request: Request) {
       console.error('Failed to send welcome email:', emailError);
     }
 
-    // CRITICAL: Return special flag to trigger session refresh
+    // CRITICAL: Return success with user data
     return NextResponse.json({
       success: true,
-      requiresSessionRefresh: true,
       user: {
         id: updatedUser.id,
         email: updatedUser.email,

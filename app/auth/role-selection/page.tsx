@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@/lib/firebase-auth-context';
 import { Briefcase, Palette } from 'lucide-react';
 
 function RoleSelectionContent() {
-  const searchParams = useSearchParams();
-  const userId = searchParams.get('userId');
-  const { update } = useSession(); // Get session update function
+  const { firebaseUser, refreshUser } = useAuth();
   
   const [selectedRole, setSelectedRole] = useState<'SKILL_PROVIDER' | 'PROJECT_CREATOR' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,18 +17,25 @@ function RoleSelectionContent() {
       return;
     }
 
+    if (!firebaseUser) {
+      setError('Please sign in first');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
+      const token = await firebaseUser.getIdToken();
+      
       const response = await fetch('/api/auth/role', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
           userType: selectedRole,
-          userId: userId || undefined,
         }),
       });
 
@@ -41,16 +45,15 @@ function RoleSelectionContent() {
         throw new Error(data.error || 'Failed to save role');
       }
 
-      // Trigger JWT token update by calling session update
-      await update();
+      // Refresh user data in context
+      await refreshUser();
       
-      // Then redirect to dashboard
+      // Redirect to dashboard
       const dashboardUrl = selectedRole === 'SKILL_PROVIDER' 
         ? '/dashboard/provider' 
         : '/dashboard/creator';
       
-      // Use replace to prevent back button issues
-      window.location.replace(dashboardUrl);
+      window.location.href = dashboardUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setIsLoading(false);
