@@ -65,6 +65,7 @@ export async function searchListingsNearby(
   }>
 > {
   // Use Prisma raw query with Haversine formula
+  // Note: We use a subquery because PostgreSQL doesn't allow using column aliases in WHERE/HAVING
   const results = await prisma.$queryRaw<
     Array<{
       id: string
@@ -82,20 +83,22 @@ export async function searchListingsNearby(
       distance_km: number
     }>
   >`
-    SELECT 
-      *,
-      (
-        6371 * 2 * asin(
-          sqrt(
-            pow(sin(radians(${lat} - lat) / 2), 2) +
-            cos(radians(${lat})) * cos(radians(lat)) *
-            pow(sin(radians(${lng} - lng) / 2), 2)
+    SELECT * FROM (
+      SELECT 
+        *,
+        (
+          6371 * 2 * asin(
+            sqrt(
+              pow(sin(radians(${lat} - lat) / 2), 2) +
+              cos(radians(${lat})) * cos(radians(lat)) *
+              pow(sin(radians(${lng} - lng) / 2), 2)
+            )
           )
-        )
-      ) AS distance_km
-    FROM "Listing"
-    WHERE "isActive" = true
-    HAVING distance_km <= ${radiusKm}
+        ) AS distance_km
+      FROM "Listing"
+      WHERE "isActive" = true
+    ) AS listings_with_distance
+    WHERE distance_km <= ${radiusKm}
     ORDER BY distance_km ASC
   `
 
@@ -138,22 +141,24 @@ export async function searchUsersNearby(
       distance_km: number
     }>
   >`
-    SELECT 
-      id, name, email, image, bio, 
-      "locationLat", "locationLng", "locationCity", credits,
-      (
-        6371 * 2 * asin(
-          sqrt(
-            pow(sin(radians(${lat} - "locationLat") / 2), 2) +
-            cos(radians(${lat})) * cos(radians("locationLat")) *
-            pow(sin(radians(${lng} - "locationLng") / 2), 2)
+    SELECT * FROM (
+      SELECT 
+        id, name, email, image, bio, 
+        "locationLat", "locationLng", "locationCity", credits,
+        (
+          6371 * 2 * asin(
+            sqrt(
+              pow(sin(radians(${lat} - "locationLat") / 2), 2) +
+              cos(radians(${lat})) * cos(radians("locationLat")) *
+              pow(sin(radians(${lng} - "locationLng") / 2), 2)
+            )
           )
-        )
-      ) AS distance_km
-    FROM "User"
-    WHERE "locationLat" IS NOT NULL 
-      AND "locationLng" IS NOT NULL
-    HAVING distance_km <= ${radiusKm}
+        ) AS distance_km
+      FROM "User"
+      WHERE "locationLat" IS NOT NULL 
+        AND "locationLng" IS NOT NULL
+    ) AS users_with_distance
+    WHERE distance_km <= ${radiusKm}
     ORDER BY distance_km ASC
   `
 
