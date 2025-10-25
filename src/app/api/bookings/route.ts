@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { sendBookingConfirmationEmail, sendBookingConfirmedEmail, sendBookingCancelledEmail } from '@/services/email'
+import { scheduleBookingReminders, cancelBookingReminders } from '@/services/jobs'
 
 // Validation schema for creating bookings
 const bookingSchema = z.object({
@@ -233,6 +235,28 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Send booking confirmation email (async, don't block response)
+    sendBookingConfirmationEmail(booking.user.email!, {
+      userName: booking.user.name || 'there',
+      listingTitle: booking.listing.title,
+      providerName: booking.listing.owner.name || 'the provider',
+      startTime: booking.startAt.toLocaleString('en-IN', {
+        dateStyle: 'full',
+        timeStyle: 'short',
+        timeZone: 'Asia/Kolkata',
+      }),
+      endTime: booking.endAt.toLocaleString('en-IN', {
+        dateStyle: 'full',
+        timeStyle: 'short',
+        timeZone: 'Asia/Kolkata',
+      }),
+      duration: booking.listing.durationMins,
+      price: booking.priceCents ? booking.priceCents / 100 : undefined,
+      bookingId: booking.id,
+    }).catch(err => {
+      console.error('Failed to send booking confirmation email:', err)
+    })
+
     return NextResponse.json(
       { message: 'Booking created successfully', booking },
       { status: 201 }
@@ -421,6 +445,58 @@ export async function PUT(req: NextRequest) {
           },
         },
       },
+    })
+
+    // Send appropriate email based on status change
+    const emailPromises: Promise<unknown>[] = []
+
+    if (status === 'CONFIRMED') {
+      // Send confirmation email to booker
+      emailPromises.push(
+        sendBookingConfirmedEmail(updatedBooking.user.email!, {
+          userName: updatedBooking.user.name || 'there',
+          listingTitle: updatedBooking.listing.title,
+          providerName: updatedBooking.listing.owner.name || 'the provider',
+          startTime: updatedBooking.startAt.toLocaleString('en-IN', {
+            dateStyle: 'full',
+            timeStyle: 'short',
+            timeZone: 'Asia/Kolkata',
+          }),
+          endTime: updatedBooking.endAt.toLocaleString('en-IN', {
+            dateStyle: 'full',
+            timeStyle: 'short',
+            timeZone: 'Asia/Kolkata',
+          }),
+          duration: updatedBooking.listing.durationMins,
+          price: updatedBooking.priceCents ? updatedBooking.priceCents / 100 : undefined,
+        })
+      )
+
+      // Schedule reminder emails
+      scheduleBookingReminders(updatedBooking.id, updatedBooking.startAt).catch(err => {
+        console.error('Failed to schedule booking reminders:', err)
+      })
+    }
+
+    if (status === 'CANCELLED' || status === 'DECLINED') {
+      // Send cancellation email to booker
+      emailPromises.push(
+        sendBookingCancelledEmail(updatedBooking.user.email!, {
+          userName: updatedBooking.user.name || 'there',
+          listingTitle: updatedBooking.listing.title,
+          providerName: updatedBooking.listing.owner.name || 'the provider',
+        })
+      )
+
+      // Cancel any scheduled reminders
+      cancelBookingReminders(updatedBooking.id).catch(err => {
+        console.error('Failed to cancel booking reminders:', err)
+      })
+    }
+
+    // Execute email sends asynchronously (don't block response)
+    Promise.all(emailPromises).catch(err => {
+      console.error('Failed to send status change emails:', err)
     })
 
     return NextResponse.json({
