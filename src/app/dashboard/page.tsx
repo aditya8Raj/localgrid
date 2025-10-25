@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import { Loader2 } from "lucide-react"
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
@@ -16,6 +17,12 @@ export default function DashboardPage() {
       return
     }
 
+    // Check if user needs onboarding
+    if (!session.user.userType) {
+      router.push("/auth/onboarding")
+      return
+    }
+
     // Redirect based on user type
     if (session.user.userType === 'SKILL_PROVIDER') {
       router.push("/dashboard/provider")
@@ -25,8 +32,9 @@ export default function DashboardPage() {
   }, [session, status, router])
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p>Redirecting to your dashboard...</p>
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <p className="text-muted-foreground">Redirecting to your dashboard...</p>
     </div>
   )
 }

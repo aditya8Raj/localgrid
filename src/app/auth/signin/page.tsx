@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Github, Mail } from "lucide-react"
+import { Mail } from "lucide-react"
 import { toast } from "sonner"
 
 export default function SignInPage() {
@@ -74,24 +74,15 @@ export default function SignInPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* OAuth Providers */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                onClick={() => handleOAuthSignIn("google")}
-                disabled={isLoading}
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                Google
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleOAuthSignIn("github")}
-                disabled={isLoading}
-              >
-                <Github className="mr-2 h-4 w-4" />
-                GitHub
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => handleOAuthSignIn("google")}
+              disabled={isLoading}
+              className="w-full"
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Sign in with Google
+            </Button>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

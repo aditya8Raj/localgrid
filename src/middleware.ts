@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
     '/auth/join',
     '/auth/join/provider',
     '/auth/join/creator',
+    '/auth/onboarding',
     '/auth/error',
     '/api/auth',
   ];
@@ -37,9 +38,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Role-based route protection
+  // Get user type and role
   const userType = token.userType as string;
   const role = token.role as string;
+  
+  // Allow onboarding route
+  if (pathname.startsWith('/auth/onboarding')) {
+    return NextResponse.next();
+  }
+
+  // Redirect to onboarding if user hasn't selected their role
+  // This applies to first-time OAuth users who haven't gone through role selection
+  if (!userType || (userType === 'SKILL_PROVIDER' && token.needsOnboarding)) {
+    return NextResponse.redirect(new URL('/auth/onboarding', request.url));
+  }
+
+  // Role-based route protection
 
   // Skill Provider routes
   if (pathname.startsWith('/dashboard/provider')) {

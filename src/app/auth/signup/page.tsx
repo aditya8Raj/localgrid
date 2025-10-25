@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Github, Mail, Users, Briefcase } from "lucide-react"
+import { Mail, Users, Briefcase } from "lucide-react"
 import { toast } from "sonner"
 import axios from "axios"
 
@@ -119,9 +119,12 @@ export default function SignUpPage() {
           <CardContent className="space-y-4">
             {/* User Type Selection */}
             <div className="space-y-3">
-              <Label>I want to join as:</Label>
+              <Label className="text-base font-semibold">I want to join as: <span className="text-red-500">*</span></Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                ⚠️ This choice is permanent and cannot be changed later
+              </p>
               <RadioGroup value={userType} onValueChange={(value: string) => setUserType(value as "SKILL_PROVIDER" | "PROJECT_CREATOR")}>
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className={`flex items-center space-x-2 border-2 rounded-lg p-4 cursor-pointer transition-all ${userType === "SKILL_PROVIDER" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
                   <RadioGroupItem value="SKILL_PROVIDER" id="provider" />
                   <Label htmlFor="provider" className="flex items-center gap-3 cursor-pointer flex-1">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -133,7 +136,7 @@ export default function SignUpPage() {
                     </div>
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className={`flex items-center space-x-2 border-2 rounded-lg p-4 cursor-pointer transition-all ${userType === "PROJECT_CREATOR" ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50"}`}>
                   <RadioGroupItem value="PROJECT_CREATOR" id="creator" />
                   <Label htmlFor="creator" className="flex items-center gap-3 cursor-pointer flex-1">
                     <div className="h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center">
@@ -151,24 +154,15 @@ export default function SignUpPage() {
             <Separator />
 
             {/* OAuth Providers */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button
-                variant="outline"
-                onClick={() => handleOAuthSignUp("google")}
-                disabled={isLoading}
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                Google
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleOAuthSignUp("github")}
-                disabled={isLoading}
-              >
-                <Github className="mr-2 h-4 w-4" />
-                GitHub
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => handleOAuthSignUp("google")}
+              disabled={isLoading}
+              className="w-full"
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Sign up with Google
+            </Button>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
