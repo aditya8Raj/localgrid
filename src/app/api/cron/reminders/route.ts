@@ -3,8 +3,10 @@ import { reminderQueue } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 
-// This endpoint is called by Vercel Cron every 15 minutes to check for due reminders
-// Add to vercel.json: { "path": "/api/cron/reminders", "schedule": "*/15 * * * *" }
+// This endpoint is for monitoring the reminder queue status
+// NOTE: On Vercel Hobby plan, this cannot be scheduled as a cron job (only daily jobs allowed)
+// On Pro plan, add to vercel.json: { "path": "/api/cron/reminders", "schedule": "*/15 * * * *" }
+// For Hobby plan: BullMQ workers process jobs automatically based on job delays
 export async function GET(request: NextRequest) {
   try {
     // Verify request is from Vercel Cron (optional but recommended)
