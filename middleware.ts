@@ -1,81 +1,66 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { auth } from '@/lib/auth';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
-  // Allow role selection page without checks
+
+  // Skip middleware for role-selection page
   if (pathname === '/auth/role-selection') {
     return NextResponse.next();
   }
-  
-  // Protected routes that require authentication
-  const protectedPaths = ['/dashboard', '/bookings', '/listings/new', '/projects/new', '/admin'];
-  const isProtected = protectedPaths.some(path => pathname.startsWith(path));
-  
-  if (!isProtected) {
-    return NextResponse.next();
-  }
 
-  // Get session token
-  const token = await getToken({ 
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET 
-  });
+  // Get session from database
+  const session = await auth();
 
-  console.log('[Middleware]', pathname, {
-    hasToken: !!token,
-    userType: token?.userType || 'null',
-    email: token?.email || 'no-email'
-  });
+  // Protect dashboard routes - require authentication
+  if (pathname.startsWith('/dashboard')) {
+    if (!session?.user) {
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
 
-  // Redirect unauthenticated users
-  if (!token) {
-    console.log('[Middleware] No token, redirecting to signin');
-    const signInUrl = new URL('/auth/signin', request.url);
-    signInUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(signInUrl);
-  }
-
-  // Check role selection
-  if (!token.userType && !pathname.startsWith('/auth/role-selection')) {
-    console.log('[Middleware] No userType, redirecting to role-selection');
-    return NextResponse.redirect(new URL('/auth/role-selection', request.url));
-  }
-
-  // Dashboard redirects
-  if (pathname === '/dashboard') {
-    // If no userType, redirect to role selection
-    if (!token.userType) {
-      console.log('[Middleware] /dashboard with no userType, redirecting to role-selection');
+    // If user hasn't selected role yet, redirect to role selection
+    if (!session.user.userType) {
       return NextResponse.redirect(new URL('/auth/role-selection', request.url));
     }
-    
-    const dashboardUrl = token.userType === 'SKILL_PROVIDER' 
-      ? '/dashboard/provider' 
-      : '/dashboard/creator';
-    console.log('[Middleware] /dashboard redirecting to:', dashboardUrl);
-    return NextResponse.redirect(new URL(dashboardUrl, request.url));
-  }
 
-  // Provider-only routes
-  if (pathname.startsWith('/dashboard/provider') || pathname.startsWith('/listings/new') || pathname.includes('/listings/') && pathname.includes('/edit')) {
-    if (token.userType !== 'SKILL_PROVIDER' && token.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/dashboard/creator', request.url));
+    // Redirect to role-specific dashboard
+    if (pathname === '/dashboard') {
+      const dashboardUrl = session.user.userType === 'SKILL_PROVIDER' 
+        ? '/dashboard/provider' 
+        : '/dashboard/creator';
+      return NextResponse.redirect(new URL(dashboardUrl, request.url));
+    }
+
+    // Provider-only routes
+    if (pathname.startsWith('/dashboard/provider') && session.user.userType !== 'SKILL_PROVIDER' && session.user.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Creator-only routes
+    if (pathname.startsWith('/dashboard/creator') && session.user.userType !== 'PROJECT_CREATOR' && session.user.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
-  // Creator-only routes
-  if (pathname.startsWith('/dashboard/creator') || pathname.startsWith('/projects/new') || pathname.includes('/projects/') && pathname.includes('/edit')) {
-    if (token.userType !== 'PROJECT_CREATOR' && token.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/dashboard/provider', request.url));
+  // Protect listing creation - only skill providers
+  if (pathname.startsWith('/listings/new')) {
+    if (!session?.user) {
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+    if (session.user.userType !== 'SKILL_PROVIDER' && session.user.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
-  // Admin-only routes
-  if (pathname.startsWith('/admin') && token.role !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Protect project creation - only project creators
+  if (pathname.startsWith('/projects/new')) {
+    if (!session?.user) {
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+    if (session.user.userType !== 'PROJECT_CREATOR' && session.user.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
   }
 
   return NextResponse.next();
@@ -85,10 +70,6 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/listings/new',
-    '/listings/:id/edit',
     '/projects/new',
-    '/projects/:id/edit',
-    '/bookings/:path*',
-    '/admin/:path*',
   ],
 };
