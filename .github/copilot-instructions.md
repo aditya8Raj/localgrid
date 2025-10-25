@@ -470,6 +470,41 @@ Example step: (see full YAML later in documentation)
 * For payments: if Stripe keys absent, implement credits-only flow and admin top-up UI.
 * For reminders: if Upstash account not provided, implement a simple cron endpoint and document how to wire a scheduler.
 
+## India-Specific Integrations (IMPORTANT)
+
+**This project is designed specifically for users in India. Use these integrations:**
+
+### Payment Gateway
+* **USE Razorpay** (NOT Stripe) - India's leading payment gateway
+* Get API keys from: https://dashboard.razorpay.com/
+* Environment variables:
+  - `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (server-side)
+  - `NEXT_PUBLIC_RAZORPAY_KEY_ID` (client-side)
+  - `RAZORPAY_WEBHOOK_SECRET` (for webhook verification)
+* Features: UPI, Cards, NetBanking, Wallets (Paytm, PhonePe, etc.)
+* Documentation: https://razorpay.com/docs/
+
+### Maps & Geolocation
+* **USE OpenStreetMap with Leaflet.js** (NOT Google Maps) - Free & Open Source
+* No API keys required
+* Libraries to install:
+  - `leaflet` - Map rendering library
+  - `react-leaflet` - React components for Leaflet
+  - `@types/leaflet` - TypeScript definitions
+* Tile server URL: `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`
+* Alternative free tile servers: https://wiki.openstreetmap.org/wiki/Tile_servers
+* For geocoding (address → lat/lng): Use Nominatim API (free, no key required)
+  - API: `https://nominatim.openstreetmap.org/search?q={address}&format=json`
+  - Add User-Agent header with your app name
+* For reverse geocoding (lat/lng → address): Use Nominatim reverse API
+  - API: `https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json`
+
+### Implementation Notes
+* Razorpay supports INR currency by default
+* OpenStreetMap data is crowd-sourced and updated regularly
+* Both integrations are production-ready and widely used in India
+* Cost: Razorpay charges ~2% per transaction; OpenStreetMap is completely free
+
 ## Deliverables & commit strategy
 
 * Deliver in these milestones (each as a PR):
