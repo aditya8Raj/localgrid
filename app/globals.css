@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant high-contrast (&:is(.high-contrast *));
 
 @theme inline {
   --color-background: var(--background);
@@ -112,6 +113,160 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* High Contrast Mode - WCAG AAA Compliance */
+.high-contrast {
+  /* Maximum contrast ratios for text and UI elements */
+  --background: oklch(1 0 0); /* Pure white */
+  --foreground: oklch(0 0 0); /* Pure black */
+  
+  /* Cards and surfaces with strong borders */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0 0 0);
+  
+  /* Primary actions - high visibility yellow/black */
+  --primary: oklch(0 0 0); /* Black */
+  --primary-foreground: oklch(1 0 0); /* White */
+  
+  /* Secondary elements - strong gray */
+  --secondary: oklch(0.95 0 0); /* Very light gray */
+  --secondary-foreground: oklch(0 0 0); /* Black */
+  
+  /* Muted elements still high contrast */
+  --muted: oklch(0.90 0 0); /* Light gray */
+  --muted-foreground: oklch(0.1 0 0); /* Near black */
+  
+  /* Accent - high visibility yellow */
+  --accent: oklch(0.85 0.2 85); /* Bright yellow */
+  --accent-foreground: oklch(0 0 0); /* Black */
+  
+  /* Destructive - red with high contrast */
+  --destructive: oklch(0.4 0.25 25); /* Dark red */
+  --border: oklch(0 0 0); /* Pure black borders */
+  --input: oklch(0 0 0); /* Black borders for inputs */
+  --ring: oklch(0.85 0.2 85); /* Yellow focus ring */
+  
+  /* Charts with maximum contrast */
+  --chart-1: oklch(0.3 0.25 260); /* Dark blue */
+  --chart-2: oklch(0.3 0.2 160); /* Dark green */
+  --chart-3: oklch(0.85 0.2 50); /* Bright orange */
+  --chart-4: oklch(0.3 0.25 300); /* Dark purple */
+  --chart-5: oklch(0.4 0.25 25); /* Dark red */
+}
+
+/* High contrast specific enhancements */
+.high-contrast {
+  /* Stronger borders for all elements */
+  * {
+    border-width: 2px !important;
+  }
+  
+  /* Enhanced focus visibility */
+  *:focus,
+  *:focus-visible {
+    outline-width: 4px !important;
+    outline-offset: 2px !important;
+    outline-color: oklch(0.85 0.2 85) !important; /* Yellow */
+  }
+  
+  /* Button states with maximum contrast */
+  button:hover:not(:disabled) {
+    filter: brightness(0.85) !important;
+    border-color: oklch(0 0 0) !important;
+  }
+  
+  button:active:not(:disabled) {
+    filter: brightness(0.7) !important;
+  }
+  
+  /* Link states */
+  a {
+    text-decoration: underline !important;
+    text-decoration-thickness: 2px !important;
+    text-underline-offset: 2px !important;
+  }
+  
+  a:hover {
+    text-decoration-thickness: 3px !important;
+    filter: brightness(0.7) !important;
+  }
+  
+  /* Form inputs with strong borders */
+  input,
+  textarea,
+  select {
+    border-color: oklch(0 0 0) !important;
+    border-width: 2px !important;
+  }
+  
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-width: 3px !important;
+    border-color: oklch(0 0 0) !important;
+  }
+  
+  /* Images and media - add borders for clarity */
+  img {
+    border: 2px solid oklch(0 0 0) !important;
+  }
+  
+  /* Shadows replaced with solid borders */
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+    border: 2px solid oklch(0 0 0) !important;
+  }
+  
+  /* Text contrast enhancements */
+  .text-gray-500,
+  .text-gray-600,
+  .text-gray-700 {
+    color: oklch(0 0 0) !important;
+  }
+  
+  /* Background contrasts */
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-gray-200 {
+    background-color: oklch(0.95 0 0) !important;
+    border: 2px solid oklch(0 0 0) !important;
+  }
+  
+  /* Status colors with maximum contrast */
+  .bg-green-50 {
+    background-color: oklch(0.9 0.2 140) !important; /* Light green */
+    border: 2px solid oklch(0.2 0.25 140) !important; /* Dark green border */
+  }
+  
+  .text-green-700 {
+    color: oklch(0.2 0.25 140) !important; /* Dark green */
+  }
+  
+  .bg-red-50 {
+    background-color: oklch(0.95 0.2 25) !important; /* Light red */
+    border: 2px solid oklch(0.3 0.25 25) !important; /* Dark red border */
+  }
+  
+  .text-red-700 {
+    color: oklch(0.3 0.25 25) !important; /* Dark red */
+  }
+  
+  .bg-yellow-50 {
+    background-color: oklch(0.95 0.2 85) !important; /* Light yellow */
+    border: 2px solid oklch(0.3 0.2 85) !important; /* Dark yellow border */
+  }
+  
+  /* Card improvements */
+  .rounded-lg {
+    border: 2px solid oklch(0 0 0) !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -120,3 +275,4 @@
     @apply bg-background text-foreground;
   }
 }
+
