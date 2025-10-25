@@ -8,6 +8,7 @@ import Script from 'next/script';
 
 declare global {
   interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     Razorpay: any;
   }
 }
@@ -63,9 +64,17 @@ export default function CreditsPage() {
     }
   };
 
-  const handlePurchase = async (credits: number, priceINR: number) => {
+  const handlePurchase = async (credits: number) => {
     setPurchasing(true);
     setError(null);
+
+    // Find the package to get the price
+    const pkg = CREDIT_PACKAGES.find(p => p.credits === credits);
+    if (!pkg) {
+      setError('Invalid credit package');
+      setPurchasing(false);
+      return;
+    }
 
     try {
       // Create Razorpay order
@@ -100,6 +109,7 @@ export default function CreditsPage() {
         theme: {
           color: '#4F46E5',
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: async (response: any) => {
           // Verify payment
           try {
@@ -210,7 +220,7 @@ export default function CreditsPage() {
                       ₹{pkg.priceINR}
                     </p>
                     <button
-                      onClick={() => handlePurchase(pkg.credits, pkg.priceINR)}
+                      onClick={() => handlePurchase(pkg.credits)}
                       disabled={purchasing}
                       className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
