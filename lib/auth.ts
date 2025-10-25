@@ -15,11 +15,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
 
-  // Use database sessions instead of JWT for reliability
+  // Use JWT for middleware (lightweight, Edge compatible)
+  // But still use database for sessions (fresh data)
   session: {
     strategy: 'database',
     maxAge: 30 * 24 * 60 * 60, // 30 days
     updateAge: 24 * 60 * 60, // 24 hours
+  },
+
+  // Generate JWT tokens for middleware to read
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
   pages: {
@@ -27,8 +33,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   callbacks: {
+    async jwt({ token, user, trigger }) {
+      // Initial sign in - add user data to token
+      if (user) {
+        token.id = user.id;
+        token.userType = user.userType;
+        token.role = user.role;
+        token.isVerified = user.isVerified;
+      }
+
+      // When user updates their role, refetch from database
+      if (trigger === 'update' || !token.userType) {
+        if (token.email) {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: token.email as string },
+            select: {
+              id: true,
+              userType: true,
+              role: true,
+              isVerified: true,
+            },
+          });
+
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.userType = dbUser.userType;
+            token.role = dbUser.role;
+            token.isVerified = dbUser.isVerified;
+          }
+        }
+      }
+
+      return token;
+    },
+
     async session({ session, user }) {
-      // Fetch fresh user data from database on every session call
+      // Always fetch fresh user data from database for server components
       const dbUser = await prisma.user.findUnique({
         where: { id: user.id },
         select: {

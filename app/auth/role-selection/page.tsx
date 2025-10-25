@@ -2,11 +2,13 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Briefcase, Palette } from 'lucide-react';
 
 function RoleSelectionContent() {
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
+  const { update } = useSession(); // Get session update function
   
   const [selectedRole, setSelectedRole] = useState<'SKILL_PROVIDER' | 'PROJECT_CREATOR' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,9 +41,10 @@ function RoleSelectionContent() {
         throw new Error(data.error || 'Failed to save role');
       }
 
-      // Role saved successfully!
-      // Force a full page reload to refresh the session
-      // This ensures the JWT token is regenerated with the new userType
+      // Trigger JWT token update by calling session update
+      await update();
+      
+      // Then redirect to dashboard
       const dashboardUrl = selectedRole === 'SKILL_PROVIDER' 
         ? '/dashboard/provider' 
         : '/dashboard/creator';
