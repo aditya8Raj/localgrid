@@ -118,7 +118,8 @@ export async function PUT(request: Request) {
 
     // Fetch order details from Razorpay
     const order = await razorpay.orders.fetch(razorpay_order_id);
-    const credits = parseInt(order.notes.credits);
+    const creditsValue = order.notes?.credits;
+    const credits = parseInt(typeof creditsValue === 'string' ? creditsValue : String(creditsValue || '0'));
 
     // Create transaction and update user credits in a transaction
     const result = await prisma.$transaction([

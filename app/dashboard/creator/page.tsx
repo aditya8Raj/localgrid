@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { Plus, Calendar, Search, Briefcase, DollarSign, Users, Star, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { CreditWallet } from '@/components/CreditWallet';
 
 export default async function CreatorDashboard() {
   const session = await auth();
@@ -150,18 +151,6 @@ export default async function CreatorDashboard() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Available Credits</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{credits}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <DollarSign className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
                 <p className="text-sm font-medium text-gray-600">Total Spending</p>
                 <p className="text-3xl font-bold text-gray-900 mt-2">₹{(totalSpending / 100).toFixed(0)}</p>
               </div>
@@ -169,6 +158,10 @@ export default async function CreatorDashboard() {
                 <DollarSign className="w-6 h-6 text-purple-600" />
               </div>
             </div>
+          </div>
+
+          <div className="col-span-1 md:col-span-2 lg:col-span-1">
+            <CreditWallet balance={credits} />
           </div>
         </div>
 

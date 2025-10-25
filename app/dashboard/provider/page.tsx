@@ -1,10 +1,11 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { Plus, Calendar, Star, TrendingUp, Users, User } from 'lucide-react';
+import { Plus, Calendar, Star, Users, User } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ProviderBookingCard } from '@/components/ProviderBookingCard';
+import { CreditWallet } from '@/components/CreditWallet';
 
 export default async function ProviderDashboard() {
   const session = await auth();
@@ -146,16 +147,8 @@ export default async function ProviderDashboard() {
             <p className="text-xs text-gray-500 mt-2">{totalReviews} reviews</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Credits</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{credits}</p>
-              </div>
-              <div className="p-3 bg-green-100 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
+          <div className="col-span-2">
+            <CreditWallet balance={credits} />
           </div>
 
           <div className="bg-white rounded-lg shadow p-6">
