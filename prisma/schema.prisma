@@ -53,236 +53,185 @@ model VerificationToken {
 // Core User Model
 model User {
   id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  password      String?   // For email/password authentication
-  image         String?
-  bio           String?   @db.Text
-  phone         String?
-  location      String?
-  latitude      Float?
-  longitude     Float?
-  radiusKm      Int       @default(10) // Search radius preference
-  verified      Boolean   @default(false) // Account verification status
-  
-  // Reputation
-  rating        Float     @default(0)
-  totalReviews  Int       @default(0)
-  credlyBadgeUrl String?  // Digital badge verification
-  
-  // Token/Credit System
-  credits       Int       @default(0)
-  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?   // Avatar URL
+  avatarUrl     String?   // Alternative avatar field
+  bio           String?
+  locationLat   Float?
+  locationLng   Float?
+  locationCity  String?
+  passwordHash  String?   // Used if email/password signup
+  role          UserRole  @default(USER)
+  credits       Int       @default(0)
 
   accounts      Account[]
   sessions      Session[]
-  skills        Skill[]
-  skillRequests SkillRequest[]
-  bookingsAsProvider Booking[] @relation("ProviderBookings")
-  bookingsAsRequester Booking[] @relation("RequesterBookings")
-  reviewsGiven  Review[]  @relation("ReviewsGiven")
-  reviewsReceived Review[] @relation("ReviewsReceived")
-  endorsements  Endorsement[]
-  projectsCreated Project[] @relation("ProjectCreator")
-  projectMembers ProjectMember[]
-  transactions  Transaction[]
-  notifications Notification[]
+  listings      Listing[]
+  bookings      Booking[]
+  reviewsGiven   Review[] @relation("reviewsGiven")
+  reviewsReceived Review[] @relation("reviewsReceived")
+  badges        VerificationBadge[]
+  endorsementsGiven  Endorsement[] @relation("endorser")
+  endorsementsReceived Endorsement[] @relation("endorsed")
+  projectsOwned CommunityProject[] @relation("owner")
+  projectMemberships ProjectMember[]
+  transactions  CreditTransaction[]
 
   @@index([email])
-  @@index([latitude, longitude])
+  @@index([locationLat, locationLng])
 }
 
-// Skills offered by users
-model Skill {
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+// Listings (Skills offered by users)
+model Listing {
   id          String   @id @default(cuid())
-  userId      String
-  title       String
-  description String   @db.Text
-  category    String   // e.g., "Digital Skills", "Crafts", "Tutoring", "Fitness", "Language"
-  level       String   // e.g., "Beginner", "Intermediate", "Expert"
-  hourlyRate  Float?   // Optional pricing
-  available   Boolean  @default(true)
-  tags        String[] // Array of skill tags
-  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  skillTags   String[]  // e.g., ["guitar", "spanish"]
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     String
+  lat         Float
+  lng         Float
+  priceCents  Int?     // optional price, or 0 for barter/credit-based
+  durationMins Int
+  isActive    Boolean  @default(true)
+  reviews     Review[]
   bookings    Booking[]
-  endorsements Endorsement[]
 
-  @@index([userId])
-  @@index([category])
-}
-
-// Learning requests/needs
-model SkillRequest {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  description String   @db.Text
-  category    String
-  budget      Float?
-  urgent      Boolean  @default(false)
-  status      String   @default("open") // "open", "matched", "completed", "closed"
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([category])
-  @@index([status])
+  @@index([ownerId])
+  @@index([lat, lng])
+  @@index([isActive])
 }
 
 // Booking and Scheduling
 model Booking {
-  id          String   @id @default(cuid())
-  providerId  String   // User providing the skill
-  requesterId String   // User requesting the skill
-  skillId     String
-  
-  startTime   DateTime
-  endTime     DateTime
-  status      String   @default("pending") // "pending", "confirmed", "completed", "cancelled"
-  location    String?  // Physical location or "online"
-  notes       String?  @db.Text
-  
-  // Reminders
-  reminderSent Boolean  @default(false)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  listing       Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId     String
+  startAt       DateTime
+  endAt         DateTime
+  status        BookingStatus @default(PENDING)
+  priceCents    Int?
+  creditsUsed   Int?
+  reminderSent  Boolean @default(false)
 
-  provider    User     @relation("ProviderBookings", fields: [providerId], references: [id], onDelete: Cascade)
-  requester   User     @relation("RequesterBookings", fields: [requesterId], references: [id], onDelete: Cascade)
-  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  review      Review?
+  @@index([userId])
+  @@index([listingId])
+  @@index([startAt])
+}
 
-  @@index([providerId])
-  @@index([requesterId])
-  @@index([skillId])
-  @@index([startTime])
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  DECLINED
 }
 
 // Reviews and Ratings
 model Review {
-  id          String   @id @default(cuid())
-  bookingId   String   @unique
-  reviewerId  String   // Person giving the review
-  revieweeId  String   // Person being reviewed
-  
-  rating      Int      // 1-5 stars
-  comment     String?  @db.Text
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  reviewer    User     @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
-  reviewee    User     @relation("ReviewsReceived", fields: [revieweeId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  rating     Int      // 1-5
+  comment    String?
+  createdAt  DateTime @default(now())
+  reviewer   User     @relation("reviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewerId String
+  subject    User     @relation("reviewsReceived", fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId  String
+  listing    Listing? @relation(fields: [listingId], references: [id])
+  listingId  String?
 
   @@index([reviewerId])
-  @@index([revieweeId])
+  @@index([subjectId])
 }
 
 // Skill Endorsements
 model Endorsement {
-  id          String   @id @default(cuid())
-  skillId     String
-  endorserId  String   // User giving endorsement
-  
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  from      User     @relation("endorser", fields: [fromId], references: [id], onDelete: Cascade)
+  fromId    String
+  to        User     @relation("endorsed", fields: [toId], references: [id], onDelete: Cascade)
+  toId      String
+  skill     String
+  createdAt DateTime @default(now())
 
-  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
-  endorser    User     @relation(fields: [endorserId], references: [id], onDelete: Cascade)
+  @@index([fromId])
+  @@index([toId])
+}
 
-  @@unique([skillId, endorserId])
-  @@index([skillId])
-  @@index([endorserId])
+// Verification Badges
+model VerificationBadge {
+  id       String   @id @default(cuid())
+  provider String   // e.g., "credly"
+  badgeId  String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  issuedAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 // Community Projects
-model Project {
+model CommunityProject {
   id          String   @id @default(cuid())
-  creatorId   String
-  title       String
-  description String   @db.Text
-  category    String
-  status      String   @default("open") // "open", "in-progress", "completed", "cancelled"
-  location    String?
-  latitude    Float?
-  longitude   Float?
-  maxMembers  Int?
-  
-  startDate   DateTime?
-  endDate     DateTime?
-  
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  creator     User     @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  owner       User     @relation("owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     String
   members     ProjectMember[]
+  status      ProjectStatus @default(ACTIVE)
 
-  @@index([creatorId])
-  @@index([status])
-  @@index([category])
+  @@index([ownerId])
 }
 
-// Project Membership
 model ProjectMember {
-  id          String   @id @default(cuid())
-  projectId   String
-  userId      String
-  role        String   @default("member") // "member", "coordinator"
-  status      String   @default("pending") // "pending", "accepted", "rejected"
-  
-  joinedAt    DateTime @default(now())
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  project   CommunityProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  role      ProjectRole @default(MEMBER)
 
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, userId])
-  @@index([projectId])
+  @@unique([userId, projectId])
   @@index([userId])
+  @@index([projectId])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  ON_HOLD
+}
+
+enum ProjectRole {
+  MEMBER
+  MANAGER
 }
 
 // Credit/Token System Transactions
-model Transaction {
-  id          String   @id @default(cuid())
-  userId      String
-  amount      Int      // Can be positive (earned) or negative (spent)
-  type        String   // "earned", "spent", "donated", "bonus"
-  description String
-  relatedId   String?  // Related booking/project ID
-  
-  createdAt   DateTime @default(now())
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+model CreditTransaction {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  amount    Int      // positive or negative
+  reason    String?
+  createdAt DateTime @default(now())
 
   @@index([userId])
-  @@index([createdAt])
-}
-
-// Notifications
-model Notification {
-  id          String   @id @default(cuid())
-  userId      String
-  type        String   // "booking", "review", "project", "reminder", "system"
-  title       String
-  message     String   @db.Text
-  read        Boolean  @default(false)
-  link        String?  // Link to relevant page
-  
-  createdAt   DateTime @default(now())
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([read])
   @@index([createdAt])
 }
