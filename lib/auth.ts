@@ -12,11 +12,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          prompt: 'consent',
+          access_type: 'offline',
+          response_type: 'code',
+        },
+      },
     }),
   ],
 
-  // Use JWT for both middleware and sessions
-  // This is more reliable than mixing strategies
+  // Use JWT strategy
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
@@ -26,8 +32,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/auth/signin',
   },
 
+  // Disable PKCE to avoid parsing errors
+  cookies: {
+    pkceCodeVerifier: {
+      name: 'next-auth.pkce.code_verifier',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
+
+  trustHost: true,
+
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, account }) {
       // Initial sign in - add user data to token
       if (user) {
         token.id = user.id;
@@ -38,24 +59,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // When user updates their role OR token has no userType, refetch from database
-      if (trigger === 'update' || !token.userType) {
-        if (token.email) {
-          const dbUser = await prisma.user.findUnique({
-            where: { email: token.email as string },
-            select: {
-              id: true,
-              userType: true,
-              role: true,
-              isVerified: true,
-            },
-          });
+      if (trigger === 'update' || (!token.userType && token.email)) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email as string },
+          select: {
+            id: true,
+            userType: true,
+            role: true,
+            isVerified: true,
+          },
+        });
 
-          if (dbUser) {
-            token.id = dbUser.id;
-            token.userType = dbUser.userType;
-            token.role = dbUser.role;
-            token.isVerified = dbUser.isVerified;
-          }
+        if (dbUser) {
+          token.id = dbUser.id;
+          token.userType = dbUser.userType;
+          token.role = dbUser.role;
+          token.isVerified = dbUser.isVerified;
         }
       }
 
