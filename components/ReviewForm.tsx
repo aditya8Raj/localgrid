@@ -59,22 +59,26 @@ export function ReviewForm({ bookingId }: ReviewFormProps) {
   };
 
   return (
-    <div className="bg-white border rounded-lg p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Leave a Review</h3>
+    <div className="bg-white border rounded-lg p-6" role="region" aria-labelledby="review-form-heading">
+      <h3 id="review-form-heading" className="text-lg font-semibold text-gray-900 mb-4">Leave a Review</h3>
       
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div 
+          className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+          role="alert"
+          aria-live="polite"
+        >
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} aria-label="Review submission form">
         {/* Star Rating */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="mb-6" role="group" aria-labelledby="rating-label">
+          <label id="rating-label" className="block text-sm font-medium text-gray-700 mb-2">
             Rating *
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-2" role="radiogroup" aria-required="true" aria-label="Rating from 1 to 5 stars">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -83,6 +87,9 @@ export function ReviewForm({ bookingId }: ReviewFormProps) {
                 onMouseEnter={() => setHoverRating(star)}
                 onMouseLeave={() => setHoverRating(0)}
                 className="transition-transform hover:scale-110"
+                aria-label={`${star} star${star > 1 ? 's' : ''}`}
+                role="radio"
+                aria-checked={rating === star}
               >
                 <Star
                   className={`w-8 h-8 ${
@@ -90,12 +97,13 @@ export function ReviewForm({ bookingId }: ReviewFormProps) {
                       ? 'fill-yellow-400 text-yellow-400'
                       : 'text-gray-300'
                   }`}
+                  aria-hidden="true"
                 />
               </button>
             ))}
           </div>
           {rating > 0 && (
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600" aria-live="polite">
               {rating === 1 && 'Poor'}
               {rating === 2 && 'Fair'}
               {rating === 3 && 'Good'}
@@ -118,8 +126,11 @@ export function ReviewForm({ bookingId }: ReviewFormProps) {
             placeholder="Share your experience with this session..."
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             disabled={isSubmitting}
+            aria-describedby="comment-counter comment-description"
+            maxLength={500}
           />
-          <p className="mt-1 text-sm text-gray-500">
+          <p id="comment-description" className="sr-only">Optional comment about your booking experience</p>
+          <p id="comment-counter" className="mt-1 text-sm text-gray-500" aria-live="polite">
             {comment.length}/500 characters
           </p>
         </div>
@@ -129,11 +140,13 @@ export function ReviewForm({ bookingId }: ReviewFormProps) {
           type="submit"
           disabled={isSubmitting || rating === 0}
           className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          aria-label={isSubmitting ? 'Submitting review...' : 'Submit review'}
+          aria-disabled={isSubmitting || rating === 0}
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Submitting...
+              <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+              <span>Submitting...</span>
             </>
           ) : (
             'Submit Review'

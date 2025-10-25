@@ -96,14 +96,18 @@ export function BookingActions({ bookingId, status, isCreator, listingId }: Book
   };
 
   return (
-    <div className="mt-8 border-t pt-8">
+    <div className="mt-8 border-t pt-8" role="region" aria-label="Booking actions">
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div 
+          className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+          role="alert"
+          aria-live="polite"
+        >
           {error}
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3" role="group" aria-label="Booking action buttons">
         {status === 'PENDING' && (
           <>
             {!isCreator && (
@@ -112,11 +116,13 @@ export function BookingActions({ bookingId, status, isCreator, listingId }: Book
                   onClick={handleConfirm}
                   disabled={isConfirming}
                   className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  aria-label="Confirm booking"
+                  aria-disabled={isConfirming}
                 >
                   {isConfirming ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Confirming...
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      <span>Confirming...</span>
                     </>
                   ) : (
                     'Confirm Booking'
@@ -126,11 +132,13 @@ export function BookingActions({ bookingId, status, isCreator, listingId }: Book
                   onClick={handleDecline}
                   disabled={isDeclining}
                   className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  aria-label="Decline booking"
+                  aria-disabled={isDeclining}
                 >
                   {isDeclining ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Declining...
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                      <span>Declining...</span>
                     </>
                   ) : (
                     'Decline'
@@ -143,11 +151,13 @@ export function BookingActions({ bookingId, status, isCreator, listingId }: Book
                 onClick={handleCancel}
                 disabled={isCancelling}
                 className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                aria-label="Cancel booking"
+                aria-disabled={isCancelling}
               >
                 {isCancelling ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Cancelling...
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                    <span>Cancelling...</span>
                   </>
                 ) : (
                   'Cancel Booking'
@@ -161,6 +171,7 @@ export function BookingActions({ bookingId, status, isCreator, listingId }: Book
           <Link
             href={`/listings/${listingId}?review=true`}
             className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 transition-colors text-center"
+            aria-label="Write a review for this booking"
           >
             Write Review
           </Link>
@@ -169,6 +180,7 @@ export function BookingActions({ bookingId, status, isCreator, listingId }: Book
         <Link
           href={isCreator ? '/dashboard/creator' : '/dashboard/provider'}
           className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+          aria-label={`Return to ${isCreator ? 'creator' : 'provider'} dashboard`}
         >
           Back to Dashboard
         </Link>

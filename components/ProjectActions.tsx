@@ -47,10 +47,11 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
   // If not logged in, show sign-in prompt
   if (!session) {
     return (
-      <div className="mt-8 border-t pt-8">
+      <div className="mt-8 border-t pt-8" role="region" aria-label="Project actions">
         <button 
           onClick={() => router.push('/auth/signin')}
           className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+          aria-label="Sign in to join this project"
         >
           Sign in to join this project
         </button>
@@ -61,14 +62,15 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
   // If user is the owner, show edit button
   if (session.user.id === ownerId) {
     return (
-      <div className="mt-8 border-t pt-8">
+      <div className="mt-8 border-t pt-8" role="region" aria-label="Project actions">
         <div className="flex gap-4">
           <button 
             onClick={() => router.push(`/projects/${projectId}/edit`)}
             className="flex-1 bg-gray-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+            aria-label="Edit project details"
           >
-            <Edit className="w-5 h-5" />
-            Edit Project
+            <Edit className="w-5 h-5" aria-hidden="true" />
+            <span>Edit Project</span>
           </button>
         </div>
       </div>
@@ -80,9 +82,9 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
     // If already a member, show badge
     if (isMember) {
       return (
-        <div className="mt-8 border-t pt-8">
-          <div className="bg-green-50 border border-green-200 text-green-700 py-4 px-6 rounded-lg text-center flex items-center justify-center gap-2">
-            <Users className="w-5 h-5" />
+        <div className="mt-8 border-t pt-8" role="region" aria-label="Project membership status">
+          <div className="bg-green-50 border border-green-200 text-green-700 py-4 px-6 rounded-lg text-center flex items-center justify-center gap-2" role="status" aria-live="polite">
+            <Users className="w-5 h-5" aria-hidden="true" />
             <span className="font-medium">You are a member of this project</span>
           </div>
         </div>
@@ -91,9 +93,9 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
 
     // Show join button
     return (
-      <div className="mt-8 border-t pt-8">
+      <div className="mt-8 border-t pt-8" role="region" aria-label="Project actions">
         {error && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg" role="alert" aria-live="polite">
             {error}
           </div>
         )}
@@ -102,16 +104,18 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
             onClick={handleJoinProject}
             disabled={isJoining}
             className="flex-1 bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label={isJoining ? 'Joining project...' : 'Join this project as a member'}
+            aria-disabled={isJoining}
           >
             {isJoining ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Joining...
+                <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                <span>Joining...</span>
               </>
             ) : (
               <>
-                <Users className="w-5 h-5" />
-                Join Project
+                <Users className="w-5 h-5" aria-hidden="true" />
+                <span>Join Project</span>
               </>
             )}
           </button>
@@ -122,8 +126,8 @@ export function ProjectActions({ projectId, ownerId, isMember = false }: Project
 
   // If user is a PROJECT_CREATOR (not owner), show message
   return (
-    <div className="mt-8 border-t pt-8">
-      <div className="bg-gray-100 text-gray-700 py-4 px-6 rounded-lg text-center">
+    <div className="mt-8 border-t pt-8" role="region" aria-label="Project access information">
+      <div className="bg-gray-100 text-gray-700 py-4 px-6 rounded-lg text-center" role="status">
         Only skill providers can join projects. You can create your own project from your dashboard.
       </div>
     </div>
