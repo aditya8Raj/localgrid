@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Users, User } from 'lucide-react';
 import Image from 'next/image';
 import { ProjectActions } from '@/components/ProjectActions';
+import { auth } from '@/lib/auth';
 
 async function getProject(id: string) {
   const project = await prisma.communityProject.findUnique({
@@ -48,6 +49,19 @@ export default async function ProjectDetailPage({
   if (!project) {
     notFound();
   }
+
+  // Check if current user is a member
+  const session = await auth();
+  const currentUser = session?.user?.email
+    ? await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      })
+    : null;
+
+  const isMember = currentUser
+    ? project.members.some((member) => member.userId === currentUser.id)
+    : false;
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -144,7 +158,7 @@ export default async function ProjectDetailPage({
             )}
 
             {/* Actions */}
-            <ProjectActions projectId={project.id} ownerId={project.ownerId} />
+            <ProjectActions projectId={project.id} ownerId={project.ownerId} isMember={isMember} />
           </div>
         </div>
 
