@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -57,10 +57,10 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
     const { id } = await params;
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -82,11 +82,11 @@ export async function PUT(
 
     // Get the user's ID
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true },
     });
 
-    if (!user || user.id !== existingListing.ownerId) {
+    if (!user || authUser.id !== existingListing.ownerId) {
       return NextResponse.json(
         { error: 'Forbidden - You can only edit your own listings' },
         { status: 403 }
@@ -139,10 +139,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
     const { id } = await params;
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -164,11 +164,11 @@ export async function DELETE(
 
     // Get the user's ID
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true },
     });
 
-    if (!user || user.id !== existingListing.ownerId) {
+    if (!user || authUser.id !== existingListing.ownerId) {
       return NextResponse.json(
         { error: 'Forbidden - You can only delete your own listings' },
         { status: 403 }

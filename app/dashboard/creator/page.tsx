@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { Plus, Calendar, Search, Briefcase, DollarSign, Users, Star, MapPin } from 'lucide-react';
@@ -7,19 +7,19 @@ import Image from 'next/image';
 import { CreditWallet } from '@/components/CreditWallet';
 
 export default async function CreatorDashboard() {
-  const session = await auth();
+  const authUser = await getUser();
 
-  if (!session?.user) {
+  if (!authUser) {
     redirect('/auth/signin');
   }
 
-  if (session.user.userType !== 'PROJECT_CREATOR' && session.user.role !== 'ADMIN') {
+  if (authUser.userType !== 'PROJECT_CREATOR' && authUser.role !== 'ADMIN') {
     redirect('/dashboard/provider');
   }
 
   // Fetch creator's data
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: authUser.id },
     include: {
       bookings: {
         take: 5,
@@ -98,7 +98,7 @@ export default async function CreatorDashboard() {
                 Creator Dashboard
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Welcome back, {session.user.name || 'Creator'}!
+                Welcome back, {user.name || 'Creator'}!
               </p>
             </div>
             <div className="flex gap-3">

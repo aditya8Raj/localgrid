@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { scheduleBookingReminders } from '@/lib/redis';
 
@@ -8,10 +8,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
     const { id } = await params;
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -39,11 +39,11 @@ export async function POST(
 
     // Get the user's ID
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -51,7 +51,7 @@ export async function POST(
     }
 
     // Check if user is the listing owner (provider)
-    if (booking.listing.ownerId !== user.id) {
+    if (booking.listing.ownerId !== authUser.id) {
       return NextResponse.json(
         { error: 'Only the provider can confirm bookings' },
         { status: 403 }

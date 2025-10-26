@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { Calendar, Clock, DollarSign, MapPin, User } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -62,24 +62,24 @@ export default async function BookingDetailPage({
 }: { 
   params: Promise<{ id: string }> 
 }) {
-  const session = await auth();
+  const user = await getUser();
   
-  if (!session?.user) {
+  if (!user) {
     redirect('/auth/signin');
   }
 
   const { id } = await params;
-  const booking = await getBooking(id, session.user.id);
+  const booking = await getBooking(id, user.id);
 
   if (!booking) {
     notFound();
   }
 
-  const isCreator = booking.userId === session.user.id;
+  const isCreator = booking.userId === user.id;
 
   // Check if review already exists (for COMPLETED bookings)
   const existingReview = booking.status === 'COMPLETED' && isCreator
-    ? await getExistingReview(booking.id, session.user.id, booking.listingId, booking.listing.ownerId)
+    ? await getExistingReview(booking.id, user.id, booking.listingId, booking.listing.ownerId)
     : null;
 
   return (

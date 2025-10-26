@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { razorpay, getCreditPackage } from '@/lib/razorpay';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
@@ -7,9 +7,9 @@ import crypto from 'crypto';
 // Create Razorpay order for credit purchase
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -29,11 +29,11 @@ export async function POST(request: Request) {
 
     // Get user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true, name: true, email: true },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -44,9 +44,9 @@ export async function POST(request: Request) {
     const order = await razorpay.orders.create({
       amount: package_info.priceINR * 100, // Convert to paise
       currency: 'INR',
-      receipt: `credit_${user.id}_${Date.now()}`,
+      receipt: `credit_${authUser.id}_${Date.now()}`,
       notes: {
-        userId: user.id,
+        userId: authUser.id,
         credits: credits.toString(),
         purpose: 'credit_purchase',
       },
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       credits: package_info.credits,
       user: {
         name: user.name,
-        email: user.email,
+        email: authUser.email,
       },
     });
   } catch (error) {
@@ -77,9 +77,9 @@ export async function POST(request: Request) {
 // Verify Razorpay payment and credit user account
 export async function PUT(request: Request) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -105,11 +105,11 @@ export async function PUT(request: Request) {
 
     // Get user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true, credits: true },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -126,7 +126,7 @@ export async function PUT(request: Request) {
       // Create credit transaction
       prisma.creditTransaction.create({
         data: {
-          userId: user.id,
+          userId: authUser.id,
           amount: credits,
           reason: `Purchased ${credits} credits via Razorpay`,
           razorpayOrderId: razorpay_order_id,
@@ -135,7 +135,7 @@ export async function PUT(request: Request) {
       }),
       // Update user credits
       prisma.user.update({
-        where: { id: user.id },
+        where: { id: authUser.id },
         data: {
           credits: {
             increment: credits,

@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { Plus, Calendar, Star, Users, User } from 'lucide-react';
@@ -8,19 +8,19 @@ import { ProviderBookingCard } from '@/components/ProviderBookingCard';
 import { CreditWallet } from '@/components/CreditWallet';
 
 export default async function ProviderDashboard() {
-  const session = await auth();
+  const authUser = await getUser();
 
-  if (!session?.user) {
+  if (!authUser) {
     redirect('/auth/signin');
   }
 
-  if (session.user.userType !== 'SKILL_PROVIDER' && session.user.role !== 'ADMIN') {
+  if (authUser.userType !== 'SKILL_PROVIDER' && authUser.role !== 'ADMIN') {
     redirect('/dashboard/creator');
   }
 
   // Fetch provider's data
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: authUser.id },
     include: {
       listings: {
         where: { isActive: true },
@@ -40,7 +40,7 @@ export default async function ProviderDashboard() {
   const bookings = await prisma.booking.findMany({
     where: {
       listing: {
-        ownerId: session.user.id,
+        ownerId: user.id,
       },
     },
     take: 5,
@@ -62,7 +62,7 @@ export default async function ProviderDashboard() {
 
   // Calculate average rating
   const reviews = await prisma.review.findMany({
-    where: { subjectId: session.user.id },
+    where: { subjectId: user.id },
     select: { rating: true },
   });
   const avgRating = reviews.length > 0
@@ -105,7 +105,7 @@ export default async function ProviderDashboard() {
                 Provider Dashboard
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Welcome back, {session.user.name || 'Provider'}!
+                Welcome back, {user.name || 'Provider'}!
               </p>
             </div>
             <Link

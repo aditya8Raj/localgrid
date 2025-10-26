@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const session = await auth();
+    const authUser = await getUser();
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -15,14 +15,14 @@ export async function GET() {
 
     // Get user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { 
         id: true,
         credits: true,
       },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -31,7 +31,7 @@ export async function GET() {
 
     // Get transaction history
     const transactions = await prisma.creditTransaction.findMany({
-      where: { userId: user.id },
+      where: { userId: authUser.id },
       orderBy: { createdAt: 'desc' },
       take: 50, // Limit to last 50 transactions
     });

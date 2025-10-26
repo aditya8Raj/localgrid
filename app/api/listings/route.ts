@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -16,9 +16,9 @@ const createListingSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     }
 
     // Only SKILL_PROVIDER users can create listings
-    if (session.user.userType !== 'SKILL_PROVIDER') {
+    if (authUser.userType !== 'SKILL_PROVIDER') {
       return NextResponse.json(
         { error: 'Only skill providers can create listings' },
         { status: 403 }
@@ -38,11 +38,11 @@ export async function POST(request: Request) {
 
     // Get the user's ID
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         durationMins: validatedData.durationMins,
         lat: validatedData.lat,
         lng: validatedData.lng,
-        ownerId: user.id,
+        ownerId: authUser.id,
         isActive: true,
       },
     });

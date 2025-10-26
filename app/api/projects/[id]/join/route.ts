@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(
@@ -7,10 +7,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
     const { id: projectId } = await params;
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -19,11 +19,11 @@ export async function POST(
 
     // Get the user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true, userType: true },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -31,7 +31,7 @@ export async function POST(
     }
 
     // Only SKILL_PROVIDER can join projects
-    if (user.userType !== 'SKILL_PROVIDER') {
+    if (authUser.userType !== 'SKILL_PROVIDER') {
       return NextResponse.json(
         { error: 'Only skill providers can join projects' },
         { status: 403 }
@@ -56,7 +56,7 @@ export async function POST(
     }
 
     // Check if user is the owner
-    if (project.ownerId === user.id) {
+    if (project.ownerId === authUser.id) {
       return NextResponse.json(
         { error: 'You cannot join your own project' },
         { status: 400 }
@@ -66,7 +66,7 @@ export async function POST(
     // Check if already a member
     const existingMembership = await prisma.projectMember.findFirst({
       where: {
-        userId: user.id,
+        userId: authUser.id,
         projectId: projectId,
       },
     });
@@ -81,7 +81,7 @@ export async function POST(
     // Create project membership
     const membership = await prisma.projectMember.create({
       data: {
-        userId: user.id,
+        userId: authUser.id,
         projectId: projectId,
         role: 'MEMBER',
       },

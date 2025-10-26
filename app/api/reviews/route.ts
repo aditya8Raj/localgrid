@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -11,9 +11,9 @@ const reviewSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -25,11 +25,11 @@ export async function POST(request: Request) {
 
     // Get the user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true, userType: true },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     }
 
     // Verify the user is the booking creator (not the provider)
-    if (booking.userId !== user.id) {
+    if (booking.userId !== authUser.id) {
       return NextResponse.json(
         { error: 'Only the booking creator can leave a review' },
         { status: 403 }
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
     // Check if review already exists
     const existingReview = await prisma.review.findFirst({
       where: {
-        reviewerId: user.id,
+        reviewerId: authUser.id,
         listingId: booking.listingId,
         subjectId: booking.listing.ownerId,
       },
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
       data: {
         rating: validatedData.rating,
         comment: validatedData.comment,
-        reviewerId: user.id,
+        reviewerId: authUser.id,
         subjectId: booking.listing.ownerId,
         listingId: booking.listingId,
       },

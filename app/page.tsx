@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { MapPin, Search, Star } from 'lucide-react';
@@ -6,16 +6,16 @@ import Link from 'next/link';
 import Image from 'next/image';
 
 export default async function Home() {
-  const session = await auth();
+  const user = await getUser();
 
   // If user is authenticated but hasn't selected role, redirect to role selection
-  if (session?.user && !session.user.userType) {
+  if (user && !user.userType) {
     redirect('/auth/role-selection');
   }
 
   // Redirect authenticated users to their dashboard
-  if (session?.user?.userType) {
-    const dashboardUrl = session.user.userType === 'SKILL_PROVIDER' 
+  if (user?.userType) {
+    const dashboardUrl = user.userType === 'SKILL_PROVIDER' 
       ? '/dashboard/provider' 
       : '/dashboard/creator';
     redirect(dashboardUrl);

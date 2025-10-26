@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getUser } from '@/lib/server-auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
@@ -12,9 +12,9 @@ const createBookingSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    const authUser = await getUser();
 
-    if (!session?.user?.email) {
+    if (!authUser?.email) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     // Only PROJECT_CREATOR users can create bookings
-    if (session.user.userType !== 'PROJECT_CREATOR') {
+    if (authUser.userType !== 'PROJECT_CREATOR') {
       return NextResponse.json(
         { error: 'Only project creators can book sessions' },
         { status: 403 }
@@ -34,11 +34,11 @@ export async function POST(request: Request) {
 
     // Get the user's ID and credits
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: authUser.email },
       select: { id: true, credits: true },
     });
 
-    if (!user) {
+    if (!authUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     // Check if user is trying to book their own listing
-    if (listing.ownerId === user.id) {
+    if (listing.ownerId === authUser.id) {
       return NextResponse.json(
         { error: 'You cannot book your own listing' },
         { status: 400 }
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
         // Create booking
         prisma.booking.create({
           data: {
-            userId: user.id,
+            userId: authUser.id,
             listingId: validatedData.listingId,
             startAt,
             endAt,
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
         }),
         // Deduct credits from creator (buyer)
         prisma.user.update({
-          where: { id: user.id },
+          where: { id: authUser.id },
           data: { credits: { decrement: creditsRequired } },
         }),
         // Add credits to provider (seller)
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
         // Create transaction record for creator (debit)
         prisma.creditTransaction.create({
           data: {
-            userId: user.id,
+            userId: authUser.id,
             amount: -creditsRequired,
             reason: `Booking payment for listing ${listing.id}`,
           },
@@ -191,7 +191,7 @@ export async function POST(request: Request) {
     // Create booking without credit payment (cash)
     const booking = await prisma.booking.create({
       data: {
-        userId: user.id,
+        userId: authUser.id,
         listingId: validatedData.listingId,
         startAt,
         endAt,
