@@ -3,17 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    // Extract user ID from the token (you should decode the Firebase token properly)
-    // For now, we'll use email from the request
+    // Get email from query params
     const email = request.nextUrl.searchParams.get('email');
     
     if (!email) {
