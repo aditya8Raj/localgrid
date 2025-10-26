@@ -50,7 +50,7 @@ The platform implements a **dual-role system** where users choose their role aft
 
 - **Framework**: Next.js 15 (App Router), React 18, TypeScript 5
 - **UI**: Shadcn UI components + Tailwind CSS 4
-- **Authentication**: NextAuth v5 (Auth.js) with Credentials, Google, GitHub
+- **Authentication**: Firebase
 - **Database**: Neon PostgreSQL (serverless), Prisma ORM 6
 - **Maps**: OpenStreetMap + Leaflet.js (free, no API key)
 - **Payments**: Razorpay (India-specific)
@@ -469,30 +469,6 @@ NEXT_PUBLIC_RAZORPAY_KEY_ID=""
 7. **Node Version**: 18.x
 
 
-## File Structure Summary
-
-```
-src/
-├── app/
-│   ├── api/          # All API routes
-│   ├── auth/         # Auth pages (signin, signup)
-│   ├── dashboard/    # Role-based dashboards
-│   ├── listings/     # Skill listings
-│   ├── projects/     # Community projects
-│   ├── bookings/     # Booking management
-│   └── credits/      # Credit system
-├── components/       # UI components
-├── lib/              # Utilities and configs
-│   ├── auth.ts       # NextAuth config
-│   ├── prisma.ts     # DB client
-│   ├── permissions.ts # Role checks
-│   ├── geo.ts        # Haversine distance
-│   ├── redis.ts      # BullMQ queues
-│   └── email.ts      # Email utilities
-├── services/         # Background workers
-└── middleware.ts     # Route protection
-```
-
 ## Final Notes
 
 - **NO SEED DATA**: Users register themselves
@@ -660,11 +636,6 @@ model CreditTransaction {
 }
 ````
 
-## Key backend utilities
-
-* `lib/prisma.ts` — export a singleton Prisma client
-* `lib/auth.ts` — NextAuth configuration + adapter
-* `lib/geo.ts` — haversine distance helper + SQL snippet to search within radius:
 
 Haversine SQL for Postgres (example):
 
@@ -688,45 +659,6 @@ const query = await prisma.$queryRaw`
 `;
 ```
 
-## NextAuth config (outline)
-
-* Use `PrismaAdapter` from `@next-auth/prisma-adapter`
-* Providers: Google, GitHub, Credentials (for email/password)
-* For Credentials provider, store hashed password with `bcrypt` on sign-up; custom sign-up flow via API route that creates user and passwordHash
-* Ensure `NEXTAUTH_SECRET` set
-
-Sample NextAuth skeleton in `src/lib/auth.ts`:
-
-```ts
-import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import GitHubProvider from "next-auth/providers/github";
-import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "./prisma";
-import bcrypt from "bcrypt";
-
-export default NextAuth({
-  adapter: PrismaAdapter(prisma),
-  providers: [
-    GoogleProvider({...}),
-    GitHubProvider({...}),
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: { email: {}, password: {} },
-      async authorize(credentials) {
-        const user = await prisma.user.findUnique({ where: { email: credentials.email } });
-        if (!user || !user.passwordHash) throw new Error("Invalid");
-        const match = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!match) throw new Error("Invalid");
-        return user;
-      }
-    })
-  ],
-  session: { strategy: "jwt" },
-  secret: process.env.NEXTAUTH_SECRET
-});
-```
 
 ## API routes and server actions
 
@@ -910,7 +842,7 @@ Example step: (see full YAML later in documentation)
 ### ✅ COMPLETED FEATURES (Production-Ready)
 
 #### 1. Authentication & User Management
-- ✅ Google OAuth with NextAuth v5
+- ✅ Firebase
 - ✅ Dual-role system (Skill Provider / Project Creator)
 - ✅ Role selection after signup at `/auth/role-selection`
 - ✅ JWT-based session management (30-day expiration)

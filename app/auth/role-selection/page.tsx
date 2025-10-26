@@ -2,10 +2,12 @@
 
 import { useState, Suspense } from 'react';
 import { useAuth } from '@/lib/firebase-auth-context';
+import { useRouter } from 'next/navigation';
 import { Briefcase, Palette } from 'lucide-react';
 
 function RoleSelectionContent() {
-  const { firebaseUser, refreshUser } = useAuth();
+  const { user, loading } = useAuth();
+  const router = useRouter();
   
   const [selectedRole, setSelectedRole] = useState<'SKILL_PROVIDER' | 'PROJECT_CREATOR' | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +19,7 @@ function RoleSelectionContent() {
       return;
     }
 
-    if (!firebaseUser) {
+    if (!user?.email) {
       setError('Please sign in first');
       return;
     }
@@ -33,7 +35,7 @@ function RoleSelectionContent() {
         },
         body: JSON.stringify({ 
           userType: selectedRole,
-          email: firebaseUser.email,
+          email: user.email,
         }),
       });
 
@@ -42,11 +44,7 @@ function RoleSelectionContent() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save role');
       }
-
-      // Refresh user data in context
-      await refreshUser();
       
-      // Redirect to dashboard
       const dashboardUrl = selectedRole === 'SKILL_PROVIDER' 
         ? '/dashboard/provider' 
         : '/dashboard/creator';
@@ -57,6 +55,19 @@ function RoleSelectionContent() {
       setIsLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    router.push('/auth/signin');
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -71,22 +82,21 @@ function RoleSelectionContent() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          {/* Skill Provider Card */}
           <button
             onClick={() => setSelectedRole('SKILL_PROVIDER')}
             disabled={isLoading}
-            className={`relative p-8 rounded-xl border-2 transition-all duration-200 text-left ${
+            className={\`relative p-8 rounded-xl border-2 transition-all duration-200 text-left \${
               selectedRole === 'SKILL_PROVIDER'
                 ? 'border-indigo-600 bg-indigo-50 shadow-lg scale-105'
                 : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
-            } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            } \${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}\`}
           >
             <div className="flex items-start gap-4 mb-4">
-              <div className={`p-3 rounded-lg ${
+              <div className={\`p-3 rounded-lg \${
                 selectedRole === 'SKILL_PROVIDER' 
                   ? 'bg-indigo-600 text-white' 
                   : 'bg-gray-100 text-gray-600'
-              }`}>
+              }\`}>
                 <Palette className="w-8 h-8" />
               </div>
               <div>
@@ -129,22 +139,21 @@ function RoleSelectionContent() {
             )}
           </button>
 
-          {/* Project Creator Card */}
           <button
             onClick={() => setSelectedRole('PROJECT_CREATOR')}
             disabled={isLoading}
-            className={`relative p-8 rounded-xl border-2 transition-all duration-200 text-left ${
+            className={\`relative p-8 rounded-xl border-2 transition-all duration-200 text-left \${
               selectedRole === 'PROJECT_CREATOR'
                 ? 'border-indigo-600 bg-indigo-50 shadow-lg scale-105'
                 : 'border-gray-200 hover:border-indigo-300 hover:shadow-md'
-            } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            } \${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}\`}
           >
             <div className="flex items-start gap-4 mb-4">
-              <div className={`p-3 rounded-lg ${
+              <div className={\`p-3 rounded-lg \${
                 selectedRole === 'PROJECT_CREATOR' 
                   ? 'bg-indigo-600 text-white' 
                   : 'bg-gray-100 text-gray-600'
-              }`}>
+              }\`}>
                 <Briefcase className="w-8 h-8" />
               </div>
               <div>
@@ -198,11 +207,11 @@ function RoleSelectionContent() {
           <button
             onClick={handleRoleSelection}
             disabled={!selectedRole || isLoading}
-            className={`px-8 py-4 rounded-lg font-semibold text-lg transition-all ${
+            className={\`px-8 py-4 rounded-lg font-semibold text-lg transition-all \${
               selectedRole && !isLoading
                 ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-xl'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            }\`}
           >
             {isLoading ? 'Saving...' : 'Continue to Dashboard →'}
           </button>

@@ -51,7 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch(`/api/auth/user?email=${encodeURIComponent(firebaseUser.email || '')}`);
 
       if (response.ok) {
-        return await response.json();
+        const userData = await response.json();
+        // Set cookie for middleware
+        document.cookie = `userEmail=${encodeURIComponent(firebaseUser.email || '')}; path=/; max-age=2592000; SameSite=Lax`;
+        return userData;
       }
       return null;
     } catch (error) {
@@ -158,6 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
+      // Clear cookie
+      document.cookie = 'userEmail=; path=/; max-age=0';
       setUser(null);
       setFirebaseUser(null);
       router.push('/');

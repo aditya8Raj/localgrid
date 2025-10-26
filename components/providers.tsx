@@ -1,14 +1,14 @@
 'use client';
 
-import { AuthProvider } from '@/lib/firebase-auth-context';
+import { SessionProvider } from 'next-auth/react';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <AuthProvider>
+    <SessionProvider>
       <ThemeProvider>
         {children}
       </ThemeProvider>
-    </AuthProvider>
+    </SessionProvider>
   );
 }
