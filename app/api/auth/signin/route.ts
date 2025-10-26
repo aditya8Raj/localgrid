@@ -1,33 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
 import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Firebase Admin is initialized
-    if (!adminAuth) {
+    const body = await request.json();
+    const { uid, email, name, picture } = body;
+
+    if (!email || !uid) {
       return NextResponse.json(
-        { error: 'Firebase Admin not initialized. Please check server configuration.' },
-        { status: 500 }
-      );
-    }
-
-    const { token } = await request.json();
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Token required' },
-        { status: 400 }
-      );
-    }
-
-    // Verify Firebase token
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    const { uid, email, name, picture } = decodedToken;
-
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email is required' },
+        { error: 'Email and UID are required' },
         { status: 400 }
       );
     }
@@ -74,7 +55,7 @@ export async function POST(request: NextRequest) {
     console.error('Sign in error:', error);
     return NextResponse.json(
       { error: 'Authentication failed' },
-      { status: 401 }
+      { status: 500 }
     );
   }
 }

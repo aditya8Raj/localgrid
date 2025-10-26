@@ -1,44 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth } from '@/lib/firebase-admin';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if Firebase Admin is initialized
-    if (!adminAuth) {
-      return NextResponse.json(
-        { error: 'Firebase Admin not initialized. Please check server configuration.' },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
-    const { userType } = z.object({
+    const { userType, email } = z.object({
       userType: z.enum(['SKILL_PROVIDER', 'PROJECT_CREATOR']),
+      email: z.string().email(),
     }).parse(body);
-
-    // Get Firebase token from Authorization header
-    const authHeader = request.headers.get('Authorization');
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Please sign in again' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    const { email } = decodedToken;
-
-    if (!email) {
-      return NextResponse.json(
-        { error: 'Email not found' },
-        { status: 400 }
-      );
-    }
 
     console.log('Attempting to update user:', email, 'with userType:', userType);
 

@@ -47,12 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch user data from our database
   const fetchUserData = async (firebaseUser: FirebaseUser): Promise<User | null> => {
     try {
-      const token = await firebaseUser.getIdToken();
-      const response = await fetch('/api/auth/user', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(`/api/auth/user?email=${encodeURIComponent(firebaseUser.email || '')}`);
 
       if (response.ok) {
         return await response.json();
@@ -85,15 +80,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdToken();
+      const user = result.user;
 
-      // Send token to backend to create/update user in database
+      // Send user data to backend to create/update user in database
       const response = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          picture: user.photoURL,
+        }),
       });
 
       if (response.ok) {
@@ -109,6 +109,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             : '/dashboard/creator';
           router.push(dashboardUrl);
         }
+      } else {
+        throw new Error('Failed to sign in');
       }
     } catch (error) {
       console.error('Error signing in with Google:', error);

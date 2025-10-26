@@ -26,16 +26,14 @@ function RoleSelectionContent() {
     setError(null);
 
     try {
-      const token = await firebaseUser.getIdToken();
-      
       const response = await fetch('/api/auth/role', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ 
           userType: selectedRole,
+          email: firebaseUser.email,
         }),
       });
 
